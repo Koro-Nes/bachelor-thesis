@@ -3,6 +3,12 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
+    #[arg(short = 'v', long, default_value_t = false)]
+    pub verbose: bool,
+
+    #[arg(short = 'd', long, default_value_t = String::from("data"))]
+    pub data_path: String,
+
     /// either 'c' for circle topology or 'r' for random topology
     #[arg(short = 't', long)]
     pub topology: char,
@@ -41,7 +47,7 @@ pub struct Args {
 
     /// assumed to be equal to the byzantine fraction; can be changed here
     #[arg(long = "tm", default_value_t = -1.0)]
-    pub trimmed_mean_beta:f32,
+    pub trimmed_mean_beta: f32,
 
     /// weight of last round's reputation
     #[arg(long = "rwa", default_value_t = 0.85)]

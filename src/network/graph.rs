@@ -1,6 +1,9 @@
-use std::{collections::HashMap, io::{self, Write}};
+use std::{
+    collections::HashMap,
+    io::{self, Write},
+};
 
-use rand::{Rng, RngExt, SeedableRng, rngs::{SmallRng, StdRng}};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 
 #[derive(Debug, Clone)]
 pub struct Graph {
@@ -9,16 +12,14 @@ pub struct Graph {
 }
 
 impl Graph {
-
     fn new(n: usize) -> Self {
         return Self {
             adjacency: HashMap::with_capacity(n),
             seed: None,
-        }
+        };
     }
 
     fn add_edge(&mut self, u: usize, v: usize) {
-
         let u32 = u as u32;
         let v32 = v as u32;
 
@@ -35,42 +36,25 @@ impl Graph {
         }
     }
 
-    fn has_edges(&mut self, u: u32) -> bool {
-        self.adjacency.contains_key(&u)
-    }
-
     pub fn gen_ring(n: usize) -> Self {
-
         let mut res = Self::new(n);
 
         for i in 0..n {
-            let prev = if i == 0 {
-                n - 1
-            } else {
-                i - 1
-            };
-            let next = if i + 1 >= n {
-                0
-            } else {
-                i + 1
-            };
-            res.adjacency.insert(i as u32, Vec::from(&[prev as u32, next as u32]));
+            let prev = if i == 0 { n - 1 } else { i - 1 };
+            let next = if i + 1 >= n { 0 } else { i + 1 };
+            res.adjacency
+                .insert(i as u32, Vec::from(&[prev as u32, next as u32]));
         }
         res
     }
 
-    fn gen_random(n: usize, seed: usize) -> (bool, Self) {
-
+    fn gen_random(n: usize, p: f32, seed: usize) -> (bool, Self) {
         let mut res = Self::new(n);
 
         let mut rng = StdRng::seed_from_u64(seed as u64);
 
-        // approximation for average degree
-        let k = (n as u32).ilog2() * 3;
-        let p: f32 = (k as f32) / (n as f32); 
-
         for u in 0..n {
-            for v in (u+1)..n {
+            for v in (u + 1)..n {
                 if rng.random::<f32>() > p {
                     res.add_edge(u, v);
                 }
@@ -80,15 +64,21 @@ impl Graph {
         (res.adjacency.len() == n, res)
     }
 
-    pub fn gen_random_with_start_seed(n: usize, seed: usize) -> Self {
+    fn generate_p(n: f32, k: f32) -> f32 {
+        1.0 - (k / (n - 1.0))
+    }
 
+    pub fn gen_random_with_start_seed(n: usize, seed: usize) -> Self {
         let mut iterations = 0;
+
+        let average_degree = (n.ilog2() as f32 + 1.0).floor();
+        let p = Self::generate_p(n as f32, average_degree);
 
         loop {
             let curr_seed = seed + iterations;
             print!("\rTrying seed: {:<20}", curr_seed);
             io::stdout().flush().unwrap();
-            let (correct_size, res) = Self::gen_random(n, curr_seed);
+            let (correct_size, res) = Self::gen_random(n, p, curr_seed);
             if correct_size {
                 println!("\nGraph with {n} nodes created using seed {curr_seed}");
                 return res;
