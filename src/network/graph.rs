@@ -68,7 +68,7 @@ impl Graph {
         1.0 - (k / (n - 1.0))
     }
 
-    pub fn gen_random_with_start_seed(n: usize, seed: usize) -> Self {
+    pub fn gen_random_with_start_seed(n: usize, seed: usize) -> (usize, Self) {
         let mut iterations = 0;
 
         let average_degree = (n.ilog2() as f32 + 1.0).floor();
@@ -81,10 +81,21 @@ impl Graph {
             let (correct_size, res) = Self::gen_random(n, p, curr_seed);
             if correct_size {
                 println!("\nGraph with {n} nodes created using seed {curr_seed}");
-                return res;
+                return (curr_seed, res);
             } else {
                 iterations += 1;
             }
         }
+    }
+
+    pub fn get_average_degree(&self) -> f64 {
+        let mut degrees = 0;
+        let mut count = 0;
+        for x in self.adjacency.keys() {
+            count += 1;
+            let r = self.adjacency.get(x).unwrap();
+            degrees += r.len();
+        }
+        degrees as f64 / count as f64
     }
 }

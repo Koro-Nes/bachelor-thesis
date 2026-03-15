@@ -1,25 +1,26 @@
+use std::process::exit;
+
 use clap::Parser;
+
+use crate::config::config::EXPERIMENT_CONFIGURATIONS;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 pub struct Args {
-    #[arg(short = 'v', long, default_value_t = false)]
+    #[arg(short = 'l', long = "list", default_value_t = false)]
+    pub list_configs: bool,
+
+    #[arg(short = 'v', long)]
     pub verbose: bool,
 
     #[arg(short = 'd', long, default_value_t = String::from("data"))]
     pub data_path: String,
 
-    /// either 'c' for circle topology or 'r' for random topology
-    #[arg(short = 't', long)]
-    pub topology: char,
+    #[arg(short = 's', long, default_value_t = 123456789)]
+    pub seed: usize,
 
-    /// number of nodes in the system
-    #[arg(short = 'n')]
-    pub n: u32,
-
-    /// byzantine fraction (e.g, 0.3 for 30%)
-    #[arg(long = "bf")]
-    pub byzantine_fraction: f32,
+    #[arg(long = "cf", default_value_t = 0.3)]
+    pub collusion_fraction: f32,
 
     /// number of communication rounds with default value 50
     #[arg(long = "cr", default_value_t = 50)]
@@ -30,7 +31,7 @@ pub struct Args {
     pub local_epochs: u32,
 
     /// batch size during local training
-    #[arg(long = "bs", default_value_t = 1)]
+    #[arg(long = "bs", default_value_t = 32)]
     pub batch_size: u32,
 
     /// learning rate of the model
@@ -46,7 +47,7 @@ pub struct Args {
     pub reputation_threshold: f32,
 
     /// assumed to be equal to the byzantine fraction; can be changed here
-    #[arg(long = "tm", default_value_t = -1.0)]
+    #[arg(long = "tm", default_value_t = 0.2)]
     pub trimmed_mean_beta: f32,
 
     /// weight of last round's reputation
@@ -60,15 +61,26 @@ pub struct Args {
     /// reputation decay
     #[arg(long = "rwg", default_value_t = 0.01)]
     pub reputation_weight_gamma: f32,
+
+    /// estimate computational cost
+    #[arg(long = "ecc", default_value_t = false)]
+    pub estimate_computational_cost: bool,
+
+    /// robust baseline accuracy
+    #[arg(long = "rba", default_value_t = 0.939445)]
+    pub robust_baseline_accuracy: f64,
 }
 
 impl Args {
     pub fn get() -> Self {
-        let mut res = Args::parse();
-
-        if res.trimmed_mean_beta == -1.0 {
-            res.trimmed_mean_beta = res.byzantine_fraction;
+        let res = Args::parse();
+        if res.list_configs {
+            for (id, c) in EXPERIMENT_CONFIGURATIONS.clone().iter().enumerate() {
+                println!("index: {id}\n{}\n", c);
+            }
+            exit(0);
         }
+
         res
     }
 }

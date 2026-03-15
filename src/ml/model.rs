@@ -3,20 +3,25 @@ use tch::{
     nn::{self, ModuleT, OptimizerConfig},
 };
 
+use crate::config::config::CONFIG;
+
 #[derive(Debug)]
-struct Model {
-    vs: nn::VarStore,
+pub struct Model {
     model: CNNModel,
     opt: nn::Optimizer,
 }
 
 impl Model {
     pub fn new(lr: f64) -> Self {
-        let vs = nn::VarStore::new(tch::Device::Cpu);
+        let vs = nn::VarStore::new(CONFIG.device);
         let model = CNNModel::new(&vs.root());
         let opt = nn::Sgd::default().build(&vs, lr).unwrap();
 
-        return Model { vs, model, opt };
+        return Model { model, opt };
+    }
+
+    pub fn model(&self) -> Tensor {
+        self.model.as_tensor()
     }
 
     pub fn train_batch(&mut self, xs: &Tensor, ys: &Tensor) -> f64 {
@@ -27,6 +32,10 @@ impl Model {
         loss.double_value(&[])
     }
 
+    pub fn update_after_aggregation(&mut self, update: &Tensor) {
+        self.model.update_from_tensor(update)
+    }
+
     pub fn predict(&self, xs: &Tensor) -> Tensor {
         let logits = self.model.forward_t(xs, false);
         logits.softmax(-1, Kind::Float)
@@ -35,6 +44,13 @@ impl Model {
     pub fn predict_classes(&self, xs: &Tensor) -> Tensor {
         let logits = self.model.forward_t(xs, false);
         logits.argmax(-1, false)
+    }
+
+    pub fn eval(&self, (xs, ys): (&Tensor, &Tensor)) -> f64 {
+        let predictions = self.predict_classes(xs);
+        let correct = predictions.eq_tensor(&ys);
+        let accuracy = correct.to_kind(tch::Kind::Float).mean(tch::Kind::Float);
+        accuracy.double_value(&[])
     }
 }
 
@@ -64,6 +80,64 @@ impl CNNModel {
             l3,
             l4,
         }
+    }
+
+    pub fn as_tensor(&self) -> Tensor {
+        let params: Vec<Tensor> = vec![
+            self.conv1.ws.copy(),
+            self.conv1.bs.as_ref().unwrap().copy(),
+            self.conv2.ws.copy(),
+            self.conv2.bs.as_ref().unwrap().copy(),
+            self.l3.ws.copy(),
+            self.l3.bs.as_ref().unwrap().copy(),
+            self.l4.ws.copy(),
+            self.l4.bs.as_ref().unwrap().copy(),
+        ];
+
+        Tensor::cat(
+            &params.iter().map(|p| p.flatten(0, -1)).collect::<Vec<_>>(),
+            0,
+        )
+    }
+
+    pub fn shapes(&self) -> Vec<Vec<i64>> {
+        vec![
+            self.conv1.ws.size(),
+            self.conv1.bs.as_ref().unwrap().size(),
+            self.conv2.ws.size(),
+            self.conv2.bs.as_ref().unwrap().size(),
+            self.l3.ws.size(),
+            self.l3.bs.as_ref().unwrap().size(),
+            self.l4.ws.size(),
+            self.l4.bs.as_ref().unwrap().size(),
+        ]
+    }
+
+    pub fn update_from_tensor(&mut self, flat_params: &Tensor) {
+        tch::no_grad(|| {
+            let mut start = 0;
+            let mut update_param = |t: &Tensor| -> Tensor {
+                let n = t.numel() as i64;
+                let slice = flat_params.narrow(0, start, n).view(&*t.size());
+                start += n;
+                slice
+            };
+            self.conv1.ws.copy_(&update_param(&self.conv1.ws));
+            let conv1_bs_update = update_param(self.conv1.bs.as_ref().unwrap());
+            self.conv1.bs.as_mut().unwrap().copy_(&conv1_bs_update);
+
+            self.conv2.ws.copy_(&update_param(&self.conv2.ws));
+            let conv2_bs_update = update_param(self.conv2.bs.as_ref().unwrap());
+            self.conv2.bs.as_mut().unwrap().copy_(&conv2_bs_update);
+
+            self.l3.ws.copy_(&update_param(&self.l3.ws));
+            let l3_bs_update = update_param(self.l3.bs.as_ref().unwrap());
+            self.l3.bs.as_mut().unwrap().copy_(&l3_bs_update);
+
+            self.l4.ws.copy_(&update_param(&self.l4.ws));
+            let l4_bs_update = update_param(self.l4.bs.as_ref().unwrap());
+            self.l4.bs.as_mut().unwrap().copy_(&l4_bs_update);
+        });
     }
 }
 
