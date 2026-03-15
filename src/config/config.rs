@@ -312,6 +312,10 @@ pub static EXPERIMENT_CONFIGURATIONS: Lazy<Vec<ExperimentConfiguration>> = Lazy:
                         match d {
                             DefenseType::NoDefense => {
                                 for agg in &no_defense_aggregators {
+                                    if matches!(t, GraphTopology::RING) && matches!(agg, AggregatorType::TrimmedMean) {
+                                        // TODO: leave out since two neighbors + Trimmed mean doesnt make sense?
+                                        continue;
+                                    }
                                     res.push(ExperimentConfiguration::new(
                                         format!(
                                             "n{}_{}_{}_bf{}_{}_{}",
