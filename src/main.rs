@@ -16,8 +16,8 @@ fn main() {
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
     //run_test_configurations();
-    //run_baseline(5);
-    run_small_sample();
+    run_baseline(5);
+    //run_small_sample();
     if Cuda::is_available() {
         Cuda::synchronize(0);
     }

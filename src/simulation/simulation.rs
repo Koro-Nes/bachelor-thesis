@@ -170,13 +170,19 @@ impl Simulation {
             }
 
             if rounds_until_50_percent_malicious.is_none() {
-                let malicious_integrators = self
+                let benign_nodes: Vec<&Node> = self
                     .nodes
                     .iter()
-                    .filter(|n| n.stats.included_adversarial_in_round.is_some())
-                    .count();
-                if malicious_integrators as f32 / self.nodes.len() as f32 >= 0.5 {
-                    rounds_until_50_percent_malicious = Some(t);
+                    .filter(|n| matches!(n.kind, NodeKind::Benign))
+                    .collect();
+                if !benign_nodes.is_empty() {
+                    let malicious_integrators = benign_nodes
+                        .iter()
+                        .filter(|n| n.stats.included_adversarial_in_round.is_some())
+                        .count();
+                    if malicious_integrators as f32 / benign_nodes.len() as f32 >= 0.5 {
+                        rounds_until_50_percent_malicious = Some(t);
+                    }
                 }
             }
 
@@ -509,17 +515,23 @@ impl Simulation {
         let mut accuracies: Vec<f64> = self
             .nodes
             .iter()
+            .filter(|n| matches!(n.kind, NodeKind::Benign))
             .map(|n| n.stats.final_accuracy)
             .collect();
         accuracies.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        let min = accuracies.first().cloned().unwrap_or(0.0);
-        let max = accuracies.last().cloned().unwrap_or(0.0);
-        let avg = accuracies.iter().sum::<f64>() / accuracies.len() as f64;
-        let median = if accuracies.len() % 2 == 0 {
-            (accuracies[accuracies.len() / 2 - 1] + accuracies[accuracies.len() / 2]) / 2.0
+        let (min, max, avg, median) = if accuracies.is_empty() {
+            (0.0, 0.0, 0.0, 0.0)
         } else {
-            accuracies[accuracies.len() / 2]
+            let min = accuracies.first().cloned().unwrap_or(0.0);
+            let max = accuracies.last().cloned().unwrap_or(0.0);
+            let avg = accuracies.iter().sum::<f64>() / accuracies.len() as f64;
+            let median = if accuracies.len() % 2 == 0 {
+                (accuracies[accuracies.len() / 2 - 1] + accuracies[accuracies.len() / 2]) / 2.0
+            } else {
+                accuracies[accuracies.len() / 2]
+            };
+            (min, max, avg, median)
         };
 
         let mut bytes_sent: Vec<u128> = self
