@@ -1,14 +1,22 @@
 Experiment: baseline_n10_random
 Seed: 123456793
 Final Global Accuracy:
-  Min: 0.952500
-  Max: 0.968000
-  Avg: 0.963450
-  Median: 0.963500
+  Min: 0.965000
+  Max: 0.976000
+  Avg: 0.970300
+  Median: 0.971000
+Bytes Sent (per round, all nodes):
+  Min: 1686584
+  Max: 6746336
+  Median: 4216460
+Bytes Received (per round, all nodes):
+  Min: 1686584
+  Max: 6746336
+  Median: 4216460
 Attack Success Rate: None
 Accuracy On Non-Target Classes: None
 Biggest Collusion Group Node Count: 0
-Rounds Until Model Below 80 Percent Baseline: 0
+Rounds Until Model Below 80 Percent Baseline: None
 Number Of Regular Nodes That Integrated Malicious Updates: 0
 Rounds Until 50 Percent Nodes Integrated Malicious: None
 Node Count: 10

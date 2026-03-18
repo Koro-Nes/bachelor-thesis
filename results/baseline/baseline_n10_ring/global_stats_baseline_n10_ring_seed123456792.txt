@@ -1,10 +1,18 @@
 Experiment: baseline_n10_ring
 Seed: 123456792
 Final Global Accuracy:
-  Min: 0.970000
-  Max: 0.979500
-  Avg: 0.974300
-  Median: 0.974250
+  Min: 0.970500
+  Max: 0.977000
+  Avg: 0.973850
+  Median: 0.973500
+Bytes Sent (per round, all nodes):
+  Min: 3373168
+  Max: 3373168
+  Median: 3373168
+Bytes Received (per round, all nodes):
+  Min: 3373168
+  Max: 3373168
+  Median: 3373168
 Attack Success Rate: None
 Accuracy On Non-Target Classes: None
 Biggest Collusion Group Node Count: 0
