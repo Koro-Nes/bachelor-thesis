@@ -1,13 +1,13 @@
 use std::{fmt::Display, ops::Add};
 
-use tch::{Kind, Tensor};
+use tch::Tensor;
 
 use crate::network::mixing_matrix::MixingMatrix;
 
 #[derive(Debug, Clone, Copy)]
 pub enum AggregatorType {
     DFedAvgM,
-    TrimmedMean,
+    ClippedMean,
     Balance,
 }
 
@@ -16,18 +16,25 @@ impl Display for AggregatorType {
         match self {
             AggregatorType::Balance => f.write_str("Balance"),
             AggregatorType::DFedAvgM => f.write_str("DFedAvgM"),
-            AggregatorType::TrimmedMean => f.write_str("TrimmedMean"),
+            AggregatorType::ClippedMean => f.write_str("ClippedMean"),
         }
     }
 }
 
 pub trait Aggregator {
     /// returns the resulting model parameters and if the model has converged
+    /// `neighbor_models` are expected to be the models received via the communication layer.
     fn aggregate(
         &mut self,
         self_model: &Tensor,
         neighbor_models: &[(u32, Tensor)],
-    ) -> Tensor;
+    ) -> AggregationResult;
+}
+
+#[derive(Debug)]
+pub struct AggregationResult {
+    pub model: Tensor,
+    pub used_neighbor_ids: Vec<u32>,
 }
 
 #[derive(Debug)]
@@ -48,7 +55,7 @@ impl DFedAvgMAggregator {
 }
 
 impl Aggregator for DFedAvgMAggregator {
-    fn aggregate(&mut self, self_model: &Tensor, neighbors: &[(u32, Tensor)]) -> Tensor {
+    fn aggregate(&mut self, self_model: &Tensor, neighbors: &[(u32, Tensor)]) -> AggregationResult {
         let mut w_neighbor_sum = 0.0;
         for (id, _) in neighbors.iter() {
             w_neighbor_sum += self.mixing_matrix.get_by_id(id);
@@ -71,68 +78,78 @@ impl Aggregator for DFedAvgMAggregator {
         };
         self.momentum = Some(m.shallow_clone());
 
-        self_model + &m
+        AggregationResult {
+            model: self_model + &m,
+            used_neighbor_ids: neighbors.iter().map(|(id, _)| *id).collect(),
+        }
     }
 }
 
 #[derive(Debug)]
-pub struct TrimmedMeanAggregator {
+pub struct ClippedMeanAggregator {
+    /// Slack applied to the median update norm for clipping. Should be >= 0.
     beta: f64,
-    history: Vec<f64>,
-    prev_result: Option<Tensor>,
 }
 
-impl TrimmedMeanAggregator {
+impl ClippedMeanAggregator {
     pub fn new(beta: f64) -> Self {
-        TrimmedMeanAggregator {
-            beta,
-            history: Vec::new(),
-            prev_result: None,
-        }
+        ClippedMeanAggregator { beta }
     }
 }
 
-impl Aggregator for TrimmedMeanAggregator {
+impl Aggregator for ClippedMeanAggregator {
     fn aggregate(
         &mut self,
         self_model: &Tensor,
         neighbor_models: &[(u32, Tensor)],
-    ) -> Tensor {
-        let mut all_models = vec![self_model.shallow_clone()];
-        all_models.extend(
-            neighbor_models
-                .iter()
-                .map(|m| m.1.shallow_clone())
-                .collect::<Vec<Tensor>>(),
-        );
+    ) -> AggregationResult {
+        let mut updates = Vec::with_capacity(neighbor_models.len());
+        let mut update_norms = Vec::with_capacity(neighbor_models.len() + 1);
 
-        let stacked = Tensor::stack(&all_models, 0);
-        let sorted = stacked.sort(0, false).0;
-
-        let num_models = sorted.size()[0];
-        let k = (self.beta * num_models as f64).floor() as i64;
-        let dims: &[i64] = &[0];
-
-        let result = if 2 * k >= num_models {
-            stacked.mean_dim(dims, false, Kind::Float)
-        } else {
-            let trimmed = sorted.narrow(0, k, num_models - 2 * k);
-            trimmed.mean_dim(dims, false, Kind::Float)
-        };
-        let current_drift = if let Some(prev) = &self.prev_result {
-            (&result - prev).abs().mean(Kind::Float).double_value(&[])
-        } else {
-            0.0
-        };
-
-        self.prev_result = Some(result.shallow_clone());
-
-        self.history.push(current_drift);
-        if self.history.len() > 5 {
-            self.history.remove(0);
+        for (_, neighbor_model) in neighbor_models.iter() {
+            let update = neighbor_model - self_model;
+            let norm = update.norm().double_value(&[]);
+            updates.push(update);
+            update_norms.push(norm);
         }
 
-        result
+        // Include self update (=0) to stabilize the median with tiny neighbor counts.
+        update_norms.push(0.0);
+
+        let median_norm = median(&mut update_norms);
+        let clip_norm = (1.0 + self.beta).max(0.0) * median_norm;
+
+        let mut sum = Tensor::zeros_like(self_model);
+        let eps = 1e-12_f64;
+
+        for update in updates.iter() {
+            let norm = update.norm().double_value(&[]);
+            let scale = if norm > clip_norm && clip_norm > 0.0 {
+                clip_norm / (norm + eps)
+            } else {
+                1.0
+            };
+            sum = sum + update * scale;
+        }
+
+        let denom = (neighbor_models.len() + 1) as f64;
+        AggregationResult {
+            model: self_model + (sum / denom),
+            used_neighbor_ids: neighbor_models.iter().map(|(id, _)| *id).collect(),
+        }
+    }
+}
+
+fn median(values: &mut [f64]) -> f64 {
+    if values.is_empty() {
+        return 0.0;
+    }
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mid = values.len() / 2;
+    if values.len() % 2 == 1 {
+        values[mid]
+    } else {
+        (values[mid - 1] + values[mid]) * 0.5
     }
 }
 
@@ -164,7 +181,7 @@ impl Aggregator for BalanceAggregator {
         &mut self,
         self_model: &Tensor,
         neighbor_models: &[(u32, Tensor)],
-    ) -> Tensor {
+    ) -> AggregationResult {
         let mut s = Vec::with_capacity(neighbor_models.len());
         let lambda_t = self.t as f64 / self.T as f64;
 
@@ -177,18 +194,26 @@ impl Aggregator for BalanceAggregator {
                 s.push(i);
             }
         }
-        let final_model = if s.is_empty() {
-            self_model.shallow_clone()
+        let (final_model, used_neighbor_ids) = if s.is_empty() {
+            (self_model.shallow_clone(), Vec::new())
         } else {
             let mut sum = Tensor::zeros_like(self_model);
+            let mut used_neighbor_ids = Vec::with_capacity(s.len());
             for i in &s {
                 sum = sum.add(&neighbor_models[*i].1);
+                used_neighbor_ids.push(neighbor_models[*i].0);
             }
             let s_len = s.len() as f64;
-            self.alpha * self_model + (1.0 - self.alpha) * (sum / s_len)
+            (
+                self.alpha * self_model + (1.0 - self.alpha) * (sum / s_len),
+                used_neighbor_ids,
+            )
         };
 
         self.t += 1;
-        final_model
+        AggregationResult {
+            model: final_model,
+            used_neighbor_ids,
+        }
     }
 }

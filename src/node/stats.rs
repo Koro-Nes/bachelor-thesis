@@ -11,6 +11,12 @@ pub struct GlobalStats {
     pub final_global_accuracy_max: f64,
     pub final_global_accuracy_avg: f64,
     pub final_global_accuracy_median: f64,
+    pub bytes_sent_min: u128,
+    pub bytes_sent_max: u128,
+    pub bytes_sent_median: u128,
+    pub bytes_received_min: u128,
+    pub bytes_received_max: u128,
+    pub bytes_received_median: u128,
     pub attack_success_rate: Option<f64>,
     pub accuracy_on_non_target_classes: Option<f64>,
     pub biggest_collusion_group_node_count: usize,
@@ -69,6 +75,8 @@ pub struct RoundStats {
     pub accuracy: f64,
     pub memory_usage: Option<u128>,
     pub cpu_usage: Option<f64>,
+    pub bytes_sent: u128,
+    pub bytes_received: u128,
     pub reputation_stats: Option<ReputationStats>,
 }
 
@@ -102,6 +110,14 @@ impl GlobalStats {
         let _ = writeln!(out, "  Max: {:.6}", self.final_global_accuracy_max);
         let _ = writeln!(out, "  Avg: {:.6}", self.final_global_accuracy_avg);
         let _ = writeln!(out, "  Median: {:.6}", self.final_global_accuracy_median);
+        let _ = writeln!(out, "Bytes Sent (per round, all nodes):");
+        let _ = writeln!(out, "  Min: {}", self.bytes_sent_min);
+        let _ = writeln!(out, "  Max: {}", self.bytes_sent_max);
+        let _ = writeln!(out, "  Median: {}", self.bytes_sent_median);
+        let _ = writeln!(out, "Bytes Received (per round, all nodes):");
+        let _ = writeln!(out, "  Min: {}", self.bytes_received_min);
+        let _ = writeln!(out, "  Max: {}", self.bytes_received_max);
+        let _ = writeln!(out, "  Median: {}", self.bytes_received_median);
         let _ = writeln!(
             out,
             "Attack Success Rate: {}",
@@ -180,6 +196,8 @@ impl NodeStats {
                     .map(|v| v.to_string())
                     .unwrap_or_else(|| "None".to_string())
             );
+            let _ = writeln!(out, "  Bytes Sent: {}", round.bytes_sent);
+            let _ = writeln!(out, "  Bytes Received: {}", round.bytes_received);
             match &round.reputation_stats {
                 Some(rep) => {
                     let _ = writeln!(out, "  Reputation Stats:");

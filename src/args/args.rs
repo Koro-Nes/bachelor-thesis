@@ -46,9 +46,9 @@ pub struct Args {
     #[arg(long = "rept", default_value_t = 0.7)]
     pub reputation_threshold: f32,
 
-    /// assumed to be equal to the byzantine fraction; can be changed here
-    #[arg(long = "tm", default_value_t = 0.2)]
-    pub trimmed_mean_beta: f32,
+    /// slack over the median update norm used for clipped mean (>= 0)
+    #[arg(long = "tm", alias = "cm", default_value_t = 0.2)]
+    pub clipped_mean_beta: f32,
 
     /// weight of last round's reputation
     #[arg(long = "rwa", default_value_t = 0.85)]

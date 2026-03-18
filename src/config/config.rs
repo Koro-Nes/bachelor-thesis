@@ -26,7 +26,7 @@ pub struct Config {
     pub metrics: MetricsConfig,
 
     pub dfedavgm: DFedAvgMConfig,
-    pub trimmedmean: TrimmedMeanConfig,
+    pub clippedmean: ClippedMeanConfig,
     pub balance: BalanceConfig,
 
     pub labelflipping: LabelFlippingConfig,
@@ -47,7 +47,7 @@ impl Display for Config {
             self.training,
             self.metrics,
             self.dfedavgm,
-            self.trimmedmean,
+            self.clippedmean,
             self.balance,
             self.labelflipping,
             self.backdoor
@@ -161,14 +161,14 @@ impl Display for DFedAvgMConfig {
 }
 
 #[derive(Debug)]
-pub struct TrimmedMeanConfig {
+pub struct ClippedMeanConfig {
     pub beta: f64,
 }
 
-impl Display for TrimmedMeanConfig {
+impl Display for ClippedMeanConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "{}Trimmed Mean{}\n\tBeta: {:<.2}{}",
+            "{}Clipped Mean{}\n\tBeta: {:<.2}{}",
             WHITE, CYAN, self.beta, RESET,
         ))
     }
@@ -299,7 +299,7 @@ pub static EXPERIMENT_CONFIGURATIONS: Lazy<Vec<ExperimentConfiguration>> = Lazy:
     ];
     let byzantine_fractions = vec![0.1, 0.2, 0.3];
     let defensive_mechanisms = vec![DefenseType::NoDefense, DefenseType::Reputation];
-    let no_defense_aggregators = vec![AggregatorType::Balance, AggregatorType::TrimmedMean];
+    let no_defense_aggregators = vec![AggregatorType::Balance, AggregatorType::ClippedMean];
     let reputation_aggregators = vec![AggregatorType::DFedAvgM];
 
     let mut res = Vec::new();
@@ -312,10 +312,6 @@ pub static EXPERIMENT_CONFIGURATIONS: Lazy<Vec<ExperimentConfiguration>> = Lazy:
                         match d {
                             DefenseType::NoDefense => {
                                 for agg in &no_defense_aggregators {
-                                    if matches!(t, GraphTopology::RING) && matches!(agg, AggregatorType::TrimmedMean) {
-                                        // TODO: leave out since two neighbors + Trimmed mean doesnt make sense?
-                                        continue;
-                                    }
                                     res.push(ExperimentConfiguration::new(
                                         format!(
                                             "n{}_{}_{}_bf{}_{}_{}",
@@ -374,7 +370,7 @@ pub static TEST_CONFIGURATIONS: Lazy<Vec<ExperimentConfiguration>> = Lazy::new(|
         AttackType::LabelFlipping,
         0.2,
         DefenseType::NoDefense,
-        AggregatorType::TrimmedMean,
+        AggregatorType::ClippedMean,
     )]
 });
 
@@ -412,8 +408,8 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         beta: 0.7,
     };
 
-    let trimmedmean = TrimmedMeanConfig {
-        beta: args.trimmed_mean_beta as f64,
+    let clippedmean = ClippedMeanConfig {
+        beta: args.clipped_mean_beta as f64,
     };
 
     let balance = BalanceConfig {
@@ -461,7 +457,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         training,
         metrics,
         dfedavgm: mfedavgd,
-        trimmedmean,
+        clippedmean,
         balance,
         labelflipping,
         backdoor,

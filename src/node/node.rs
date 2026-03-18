@@ -16,12 +16,12 @@ use crate::{
     ml::{
         aggregator::{
             Aggregator, AggregatorType, BalanceAggregator, DFedAvgMAggregator,
-            TrimmedMeanAggregator,
+            ClippedMeanAggregator,
         },
         dataset::{DataSet, LocalDataSet},
         model::Model,
     },
-    network::{graph::Graph, mixing_matrix::MixingMatrix, reputation::ReputationTable},
+    network::{communication::Communication, graph::Graph, mixing_matrix::MixingMatrix, reputation::ReputationTable},
     node::stats::NodeStats,
 };
 
@@ -31,6 +31,8 @@ pub struct Node {
     pub dataset: LocalDataSet,
     pub neighbors: Vec<u32>,
     pub kind: NodeKind,
+
+    pub communication: Communication,
 
     pub attack: Option<Box<dyn AttackStrategy>>,
     pub defense: Box<dyn DefenseMechanism>,
@@ -87,7 +89,6 @@ impl Node {
         let n_adversarial = ((n as f32) * byzantine_fraction).floor() as usize;
         let n_collusion = (n_adversarial as f32 * collusion_fraction).ceil() as usize;
         let n_benign = n - n_adversarial;
-        let reputation_table = Rc::new(RefCell::new(ReputationTable::new()));
         let initial_params = Model::new(CONFIG.training.learning_rate.into()).model();
 
         let mut res = Vec::with_capacity(n);
@@ -157,6 +158,11 @@ impl Node {
             );
 
             let neighbors = graph.adjacency.get(id).unwrap().to_vec();
+            let reputation_table = Rc::new(RefCell::new(ReputationTable::new()));
+
+            let mut communication = Communication::new(*id);
+            communication.add_neighbor_channels(neighbors.iter().cloned());
+
             let mixing_matrix = MixingMatrix::new(*id, graph);
             let node_stats = NodeStats::new(
                 *id,
@@ -176,6 +182,7 @@ impl Node {
                         model: node_model,
                         dataset: data_set,
                         neighbors: neighbors.clone(),
+                        communication,
                         kind,
                         attack: None,
                         defense: match defense_type {
@@ -197,8 +204,8 @@ impl Node {
                                 CONFIG.dfedavgm.beta,
                                 mixing_matrix,
                             )),
-                            AggregatorType::TrimmedMean => Box::new(TrimmedMeanAggregator::new(
-                                CONFIG.trimmedmean.beta,
+                            AggregatorType::ClippedMean => Box::new(ClippedMeanAggregator::new(
+                                CONFIG.clippedmean.beta,
                             )),
                         },
                         reputation: Rc::clone(&reputation_table),
@@ -214,6 +221,7 @@ impl Node {
                         model: node_model,
                         dataset: data_set,
                         neighbors: neighbors.clone(),
+                        communication,
                         kind,
                         attack: match attack_type {
                             AttackType::LabelFlipping => Some(Box::new(LabelFlippingAttack::new())),
@@ -248,8 +256,8 @@ impl Node {
                                 CONFIG.dfedavgm.beta,
                                 mixing_matrix,
                             )),
-                            AggregatorType::TrimmedMean => Box::new(TrimmedMeanAggregator::new(
-                                CONFIG.trimmedmean.beta,
+                            AggregatorType::ClippedMean => Box::new(ClippedMeanAggregator::new(
+                                CONFIG.clippedmean.beta,
                             )),
                         },
                         reputation: Rc::clone(&reputation_table),
@@ -296,8 +304,7 @@ impl Node {
         match attack.kind() {
             AttackType::LabelFlipping => attack.manipulate_dataset(&mut self.dataset),
             AttackType::SignFlipping => {
-                let new_model = attack.manipulate_model(&self.model.model());
-                self.model.update_after_aggregation(&new_model);
+                // Sign flipping is applied when sending models.
             }
             AttackType::BackdoorTrigger => attack.manipulate_dataset(&mut self.dataset),
             AttackType::NoAttack => (),

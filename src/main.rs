@@ -16,7 +16,8 @@ fn main() {
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
     //run_test_configurations();
-    run_baseline(5);
+    //run_baseline(5);
+    run_small_sample();
     if Cuda::is_available() {
         Cuda::synchronize(0);
     }
@@ -74,6 +75,33 @@ fn run_test_configurations() {
     metrics_from_sim(results);
 }
 
+fn run_small_sample() {
+    let configs = vec![
+        //EXPERIMENT_CONFIGURATIONS[38].clone(),
+        //EXPERIMENT_CONFIGURATIONS[24].clone(),
+        //EXPERIMENT_CONFIGURATIONS[28].clone(),
+        EXPERIMENT_CONFIGURATIONS[132].clone()
+    ];
+    let mut results = Vec::new();
+    for c in configs {
+        let mut sim_res = Vec::new();
+        let seed = c.seed_or(CONFIG.seed);
+        let mut simulation = Simulation::setup_with_seed(
+            c.topology,
+            c.attack_type,
+            c.defense_type,
+            c.aggregator_type,
+            c.byzantine_fraction,
+            c.node_count,
+            seed,
+        );
+        println!("{}", c);
+        simulation.run(&c.name, &mut sim_res);
+        results.push(sim_res);
+    }
+    metrics_from_sim(results);
+}
+
 fn run_baseline(n_runs: usize) {
     let node_counts = [10_u32, 50, 200];
     let topologies = [GraphTopology::RING, GraphTopology::RANDOM];
@@ -91,7 +119,7 @@ fn run_baseline(n_runs: usize) {
                     AttackType::NoAttack,
                     0.0,
                     DefenseType::NoDefense,
-                    AggregatorType::TrimmedMean,
+                    AggregatorType::ClippedMean,
                 )
                 .with_seed(seed);
 

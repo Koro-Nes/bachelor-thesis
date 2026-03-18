@@ -1,17 +1,17 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     time::Instant,
 };
 
 use tch::Tensor;
 
 use crate::{
-    attack::attack::{AttackType, BackDoorTriggerAttack},
+    attack::attack::{outgoing_model_for_attack, AttackType, BackDoorTriggerAttack},
     config::config::{CONFIG, GraphTopology},
     defense::defense::DefenseType,
     logging::{colors::{BLUE, BOLD, CYAN, GREEN, RED, RESET, YELLOW}, io},
     ml::{aggregator::AggregatorType, dataset::DataSet},
-    network::graph,
+    network::{communication::Channel, graph},
     node::{
         node::{Node, NodeKind},
         stats::{GlobalStats, RoundStats},
@@ -24,10 +24,12 @@ pub struct Simulation {
     pub final_test_set: (Tensor, Tensor),
     pub seed: usize,
     pub is_reputation: bool,
-    pub is_sign_flip: bool,
     pub biggest_collusion_group_size: usize,
     adversarial_set: HashSet<u32>,
     attack_type: AttackType,
+    reputation_channel_map: HashMap<u32, Channel<(u32, u32, f64)>>,
+    neighbor_channel_map: HashMap<u32, Channel<(u32, u32)>>,
+    model_channel_map: HashMap<u32, Channel<(u32, Tensor)>>,
 }
 
 impl Simulation {
@@ -94,18 +96,24 @@ impl Simulation {
             .collect();
 
         let is_reputation = matches!(defense_type, DefenseType::Reputation);
-        let is_sign_flip = matches!(attack_type, AttackType::SignFlipping);
-        Self {
+        let mut sim = Self {
             loop_test_set,
             final_test_set,
             nodes,
             seed: derived_seed,
             is_reputation,
-            is_sign_flip,
             biggest_collusion_group_size,
             adversarial_set: adversarial_nodes,
             attack_type,
+            model_channel_map: HashMap::with_capacity(n as usize),
+            neighbor_channel_map: HashMap::with_capacity(n as usize),
+            reputation_channel_map: HashMap::with_capacity(n as usize)
+        };
+        sim.init_channels_and_shared_neighbors();
+        for node in sim.nodes.iter_mut() {
+            let _ = node.communication.take_bytes();
         }
+        sim
     }
 
     pub fn run(&mut self, name: &str, log: &mut Vec<(f64, f64, f64, u128)>) {
@@ -117,9 +125,20 @@ impl Simulation {
             let mut start = Instant::now();
 
             let accuracies = self.train_local_and_eval(t);
+            let attack_by_id: HashMap<u32, bool> = self
+                .nodes
+                .iter()
+                .map(|n| (n.id, n.attack.is_some()))
+                .collect();
+            let benign_accuracies: Vec<(u32, f64)> = accuracies
+                .iter()
+                .copied()
+                .filter(|(id, _, _)| attack_by_id.get(id).copied().unwrap_or(false) == false)
+                .map(|(id, acc, _)| (id, acc))
+                .collect();
             log.push(Self::calculate_round_accuracy(
                 &format!("{}loc{}", BLUE, RESET),
-                &accuracies.iter().map(|(id, acc, _)| (*id, *acc)).collect(),
+                &benign_accuracies,
                 t,
                 start,
             ));
@@ -233,14 +252,6 @@ impl Simulation {
             .iter_mut()
             .map(|n| {
                 let loss = n.train_local();
-                if self.is_sign_flip && n.attack.is_some() {
-                    let new_model = n
-                        .attack
-                        .as_ref()
-                        .unwrap()
-                        .manipulate_model(&n.model.model());
-                    n.model.update_after_aggregation(&new_model);
-                }
                 (
                     n.id,
                     n.model
@@ -250,10 +261,6 @@ impl Simulation {
             })
             .collect();
         all_evals
-            .iter()
-            .copied()
-            .filter(|(id, _, _)| self.nodes[*id as usize].attack.is_none())
-            .collect()
     }
 
     pub fn perform_aggregation(
@@ -261,15 +268,49 @@ impl Simulation {
         t: u32,
         round_stats: &mut [RoundStats],
     ) -> Vec<Tensor> {
-        let mut res = Vec::new();
+        for node in self.nodes.iter_mut() {
+            let base_model = node.model.model();
+            let outbound_model = outgoing_model_for_attack(node.attack.as_deref(), &base_model);
+            node.communication
+                .send_models(&outbound_model, &mut self.model_channel_map);
+        }
+
+        if self.is_reputation {
+            for node in self.nodes.iter_mut() {
+                let rep_table = node.reputation.borrow();
+                let rep_scores: Vec<(u32, f64)> = node
+                    .neighbors
+                    .iter()
+                    .map(|neighbor_id| {
+                        let score = rep_table.get(&(node.id, *neighbor_id));
+                        (*neighbor_id, score)
+                    })
+                    .collect();
+                node.communication
+                    .send_reputation_scores(&rep_scores, &mut self.reputation_channel_map);
+            }
+        }
+
+        let mut res = Vec::with_capacity(self.nodes.len());
         for i in 0..self.nodes.len() {
-            let neighbor_ids: Vec<u32> = self.nodes[i].neighbors.clone();
-            let mut neighbor_models: Vec<(u32, Tensor)> = neighbor_ids
-                .iter()
-                .map(|a| (*a, self.nodes.get(*a as usize).unwrap().model.model()))
-                .collect();
-            let self_model = self.nodes[i].model.model();
+            let (neighbor_models, received_scores, self_model) = {
+                let node = &mut self.nodes[i];
+                let neighbor_models =
+                    node.communication.receive_models(&mut self.model_channel_map);
+                let received_scores = if self.is_reputation {
+                    Some(
+                        node.communication
+                            .receive_reputation_scores(&mut self.reputation_channel_map),
+                    )
+                } else {
+                    None
+                };
+                let self_model = node.model.model();
+                (neighbor_models, received_scores, self_model)
+            };
+
             let current_node = &mut self.nodes[i];
+            let mut filtered_models = neighbor_models;
             if self.is_reputation {
                 let adversarial_set = if current_node.attack.is_some()
                     || current_node.stats.included_adversarial_in_round.is_some()
@@ -279,20 +320,28 @@ impl Simulation {
                     Some(&self.adversarial_set)
                 };
 
-                neighbor_models = current_node.defense.filter(
+                filtered_models = current_node.defense.filter(
                     &self_model,
-                    &neighbor_models,
+                    &filtered_models,
                     &mut current_node.reputation.borrow_mut(),
                     t as usize,
                     adversarial_set,
                     &mut current_node.stats,
                     &mut round_stats[i],
+                    received_scores.as_deref().unwrap_or(&[]),
                 );
             }
             let agg_res = current_node
                 .aggregator
-                .aggregate(&self_model, &neighbor_models);
-            res.push(agg_res);
+                .aggregate(&self_model, &filtered_models);
+            if agg_res
+                .used_neighbor_ids
+                .iter()
+                .any(|id| self.adversarial_set.contains(id))
+            {
+                current_node.stats.set_adversarial_include_round(t as usize);
+            }
+            res.push(agg_res.model);
         }
         res
     }
@@ -303,6 +352,8 @@ impl Simulation {
         mut round_stats: Vec<RoundStats>,
         accuracies: Vec<(u32, f64, f64)>,
     ) -> Vec<(u32, f64)> {
+        let loss_by_id: HashMap<u32, f64> =
+            accuracies.iter().map(|(id, _, loss)| (*id, *loss)).collect();
         self.nodes
             .iter_mut()
             .enumerate()
@@ -314,11 +365,15 @@ impl Simulation {
 
                 let mut rs = round_stats.remove(0);
                 rs.accuracy = acc;
-                rs.loss = accuracies.iter().find(|(i, _, _)| *i == id as u32).unwrap().2;
+                rs.loss = *loss_by_id
+                    .get(&n.id)
+                    .expect("missing loss for node id");
                 if CONFIG.metrics.estimate_computational_cost {
-                    rs.cpu_usage = Some(rand::random::<f64>() * 10.0 + 20.0);
-                    rs.memory_usage = Some(rand::random::<u128>() % 1000 + 2000);
+                    // TOOD:
                 }
+                let (bytes_sent, bytes_received) = n.communication.take_bytes();
+                rs.bytes_sent = bytes_sent;
+                rs.bytes_received = bytes_received;
                 n.stats.add_round(rs);
                 (n.id, acc)
             })
@@ -418,6 +473,26 @@ impl Simulation {
         self.nodes.iter().find(|n| n.attack.is_none()).map(|n| &n.model)
     }
 
+    fn init_channels_and_shared_neighbors(&mut self) {
+        for node in &self.nodes {
+            self.model_channel_map
+                .insert(node.id, Channel::new());
+            self.neighbor_channel_map
+                .insert(node.id, Channel::new());
+            self.reputation_channel_map
+                .insert(node.id, Channel::new());
+        }
+
+        for node in self.nodes.iter_mut() {
+            node.communication
+                .send_neighbor_sharing(&mut self.neighbor_channel_map);
+        }
+        for node in self.nodes.iter_mut() {
+            node.communication
+                .compute_shared_neighbors(&mut self.neighbor_channel_map);
+        }
+    }
+    
     fn save_stats(
         &self,
         name: &str,
@@ -427,6 +502,10 @@ impl Simulation {
         number_of_regular_nodes_that_integrated_malicious_updates: usize,
         rounds_until_50_percent_nodes_integrated_malicious: Option<u32>,
     ) {
+        fn average_u128(a: u128, b: u128) -> u128 {
+            a / 2 + b / 2 + (a % 2 + b % 2) / 2
+        }
+
         let mut accuracies: Vec<f64> = self
             .nodes
             .iter()
@@ -443,6 +522,40 @@ impl Simulation {
             accuracies[accuracies.len() / 2]
         };
 
+        let mut bytes_sent: Vec<u128> = self
+            .nodes
+            .iter()
+            .flat_map(|n| n.stats.round_stats.iter().map(|r| r.bytes_sent))
+            .collect();
+        bytes_sent.sort();
+        let bytes_sent_min = bytes_sent.first().cloned().unwrap_or(0);
+        let bytes_sent_max = bytes_sent.last().cloned().unwrap_or(0);
+        let bytes_sent_median = if bytes_sent.is_empty() {
+            0
+        } else if bytes_sent.len() % 2 == 0 {
+            let mid = bytes_sent.len() / 2;
+            average_u128(bytes_sent[mid - 1], bytes_sent[mid])
+        } else {
+            bytes_sent[bytes_sent.len() / 2]
+        };
+
+        let mut bytes_received: Vec<u128> = self
+            .nodes
+            .iter()
+            .flat_map(|n| n.stats.round_stats.iter().map(|r| r.bytes_received))
+            .collect();
+        bytes_received.sort();
+        let bytes_received_min = bytes_received.first().cloned().unwrap_or(0);
+        let bytes_received_max = bytes_received.last().cloned().unwrap_or(0);
+        let bytes_received_median = if bytes_received.is_empty() {
+            0
+        } else if bytes_received.len() % 2 == 0 {
+            let mid = bytes_received.len() / 2;
+            average_u128(bytes_received[mid - 1], bytes_received[mid])
+        } else {
+            bytes_received[bytes_received.len() / 2]
+        };
+
         let stats = GlobalStats {
             experiment_name: name.to_string(),
             seed: self.seed,
@@ -450,6 +563,12 @@ impl Simulation {
             final_global_accuracy_max: max,
             final_global_accuracy_avg: avg,
             final_global_accuracy_median: median,
+            bytes_sent_min,
+            bytes_sent_max,
+            bytes_sent_median,
+            bytes_received_min,
+            bytes_received_max,
+            bytes_received_median,
             attack_success_rate,
             accuracy_on_non_target_classes,
             biggest_collusion_group_node_count: self.biggest_collusion_group_size,

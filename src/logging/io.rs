@@ -6,7 +6,7 @@ use std::{
 
 use crate::{config::config::ExperimentConfiguration, node::stats::GlobalStats};
 
-const DEFAULT_RESULTS_PATH: &str = "./results";
+const DEFAULT_RESULTS_PATH: &str = "./logs";
 
 static RESULTS_BASE_PATH: OnceLock<String> = OnceLock::new();
 static ROOT_FOLDER_NAME: OnceLock<String> = OnceLock::new();

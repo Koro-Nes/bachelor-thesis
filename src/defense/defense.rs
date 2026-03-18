@@ -33,6 +33,7 @@ pub trait DefenseMechanism {
         adversarial_set: Option<&HashSet<u32>>,
         stats: &mut NodeStats,
         round_stats: &mut RoundStats,
+        received_scores: &[(u32, Vec<(u32, f64)>)],
     ) -> Vec<(u32, Tensor)>;
 }
 
@@ -55,6 +56,7 @@ impl DefenseMechanism for NoDefense {
         adversarial_set: Option<&HashSet<u32>>,
         stats: &mut NodeStats,
         _round_stats: &mut RoundStats,
+        _received_scores: &[(u32, Vec<(u32, f64)>)],
     ) -> Vec<(u32, Tensor)> {
         let mut res = Vec::with_capacity(neighbor_models.len());
         for (idx, model) in neighbor_models {
@@ -104,7 +106,16 @@ impl DefenseMechanism for Reputation {
         adversarial_set: Option<&HashSet<u32>>,
         stats: &mut NodeStats,
         round_stats: &mut RoundStats,
+        received_scores: &[(u32, Vec<(u32, f64)>)],
     ) -> Vec<(u32, Tensor)> {
+        if !received_scores.is_empty() {
+            for (neighbor_id, scores) in received_scores {
+                for (shared_id, score) in scores {
+                    reputation_table.put((*neighbor_id, *shared_id), *score);
+                }
+            }
+        }
+
         let mut res = Vec::with_capacity(neighbor_models.len());
         let mut reputation_stats = ReputationStats::default();
         let mut correctly_blocked = 0;
