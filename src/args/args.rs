@@ -67,7 +67,7 @@ pub struct Args {
     pub estimate_computational_cost: bool,
 
     /// robust baseline accuracy
-    #[arg(long = "rba", default_value_t = 0.939445)]
+    #[arg(long = "rba", default_value_t = 0.955021)]
     pub robust_baseline_accuracy: f64,
 }
 

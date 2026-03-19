@@ -22,8 +22,8 @@ fn main() {
     //     repository::defense::defense::DefenseType::NoDefense,
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
-    //run(CONFIG.seed);
-    run_baseline(2);
+    run(CONFIG.seed);
+    //run_baseline(2);
     //run_small_sample();
     if Cuda::is_available() {
         Cuda::synchronize(0);
