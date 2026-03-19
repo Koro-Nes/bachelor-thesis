@@ -1,0 +1,808 @@
+Node: 79
+Kind: Benign
+Defense Type: NoD
+Attack Type: None
+Neighbors Count: 10
+Included Adversarial In Round: None
+Final Accuracy: 0.948000
+Rounds: 100
+Round 0:
+  Loss: 1.743116
+  Accuracy: 0.428000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 1:
+  Loss: 1.556489
+  Accuracy: 0.591500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 2:
+  Loss: 1.109693
+  Accuracy: 0.487500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 3:
+  Loss: 1.033488
+  Accuracy: 0.660000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 4:
+  Loss: 0.948503
+  Accuracy: 0.689500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 5:
+  Loss: 0.733788
+  Accuracy: 0.735500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 6:
+  Loss: 0.789701
+  Accuracy: 0.760000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 7:
+  Loss: 0.909068
+  Accuracy: 0.745000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 8:
+  Loss: 0.722474
+  Accuracy: 0.756500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 9:
+  Loss: 0.490452
+  Accuracy: 0.830500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 10:
+  Loss: 0.580831
+  Accuracy: 0.826000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 11:
+  Loss: 0.674771
+  Accuracy: 0.867000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 12:
+  Loss: 0.410626
+  Accuracy: 0.863000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 13:
+  Loss: 0.392726
+  Accuracy: 0.851500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 14:
+  Loss: 0.409432
+  Accuracy: 0.866000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 15:
+  Loss: 0.328982
+  Accuracy: 0.866500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 16:
+  Loss: 0.301937
+  Accuracy: 0.877500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 17:
+  Loss: 0.370542
+  Accuracy: 0.876000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 18:
+  Loss: 0.335848
+  Accuracy: 0.885000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 19:
+  Loss: 0.304568
+  Accuracy: 0.884500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 20:
+  Loss: 0.378533
+  Accuracy: 0.889000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 21:
+  Loss: 0.321314
+  Accuracy: 0.892500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 22:
+  Loss: 0.295742
+  Accuracy: 0.899500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 23:
+  Loss: 0.371079
+  Accuracy: 0.896500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 24:
+  Loss: 0.270929
+  Accuracy: 0.905000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 25:
+  Loss: 0.261090
+  Accuracy: 0.904500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 26:
+  Loss: 0.282190
+  Accuracy: 0.894500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 27:
+  Loss: 0.218750
+  Accuracy: 0.899000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 28:
+  Loss: 0.220456
+  Accuracy: 0.902000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 29:
+  Loss: 0.247656
+  Accuracy: 0.895500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 30:
+  Loss: 0.272359
+  Accuracy: 0.910500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 31:
+  Loss: 0.332222
+  Accuracy: 0.904500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 32:
+  Loss: 0.250335
+  Accuracy: 0.900000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 33:
+  Loss: 0.204017
+  Accuracy: 0.915000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 34:
+  Loss: 0.199374
+  Accuracy: 0.915000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 35:
+  Loss: 0.314567
+  Accuracy: 0.914500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 36:
+  Loss: 0.200417
+  Accuracy: 0.917000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 37:
+  Loss: 0.219945
+  Accuracy: 0.916500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 38:
+  Loss: 0.251361
+  Accuracy: 0.917500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 39:
+  Loss: 0.225206
+  Accuracy: 0.910000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 40:
+  Loss: 0.183845
+  Accuracy: 0.917000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 41:
+  Loss: 0.180305
+  Accuracy: 0.922000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 42:
+  Loss: 0.251833
+  Accuracy: 0.917500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 43:
+  Loss: 0.177699
+  Accuracy: 0.920500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 44:
+  Loss: 0.176801
+  Accuracy: 0.920000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 45:
+  Loss: 0.179564
+  Accuracy: 0.925000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 46:
+  Loss: 0.237315
+  Accuracy: 0.916500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 47:
+  Loss: 0.165073
+  Accuracy: 0.924000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 48:
+  Loss: 0.207042
+  Accuracy: 0.925000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 49:
+  Loss: 0.193045
+  Accuracy: 0.928000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 50:
+  Loss: 0.214045
+  Accuracy: 0.923500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 51:
+  Loss: 0.214875
+  Accuracy: 0.923500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 52:
+  Loss: 0.198193
+  Accuracy: 0.919000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 53:
+  Loss: 0.194517
+  Accuracy: 0.927500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 54:
+  Loss: 0.154626
+  Accuracy: 0.929500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 55:
+  Loss: 0.155956
+  Accuracy: 0.930000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 56:
+  Loss: 0.194756
+  Accuracy: 0.926000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 57:
+  Loss: 0.148619
+  Accuracy: 0.924500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 58:
+  Loss: 0.178278
+  Accuracy: 0.928000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 59:
+  Loss: 0.150925
+  Accuracy: 0.930500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 60:
+  Loss: 0.168699
+  Accuracy: 0.928000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 61:
+  Loss: 0.157103
+  Accuracy: 0.922000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 62:
+  Loss: 0.145954
+  Accuracy: 0.933500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 63:
+  Loss: 0.156706
+  Accuracy: 0.927500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 64:
+  Loss: 0.127463
+  Accuracy: 0.931500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 65:
+  Loss: 0.153681
+  Accuracy: 0.929500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 66:
+  Loss: 0.138906
+  Accuracy: 0.934000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 67:
+  Loss: 0.179722
+  Accuracy: 0.932000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 68:
+  Loss: 0.154066
+  Accuracy: 0.930500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 69:
+  Loss: 0.157318
+  Accuracy: 0.935000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 70:
+  Loss: 0.140288
+  Accuracy: 0.932000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 71:
+  Loss: 0.150181
+  Accuracy: 0.934500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 72:
+  Loss: 0.206581
+  Accuracy: 0.936500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 73:
+  Loss: 0.169514
+  Accuracy: 0.936000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 74:
+  Loss: 0.166652
+  Accuracy: 0.935500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 75:
+  Loss: 0.164060
+  Accuracy: 0.938000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 76:
+  Loss: 0.145000
+  Accuracy: 0.933000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 77:
+  Loss: 0.145674
+  Accuracy: 0.934500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 78:
+  Loss: 0.276042
+  Accuracy: 0.936000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 79:
+  Loss: 0.126805
+  Accuracy: 0.938000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 80:
+  Loss: 0.113202
+  Accuracy: 0.937000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 81:
+  Loss: 0.179364
+  Accuracy: 0.939500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 82:
+  Loss: 0.128375
+  Accuracy: 0.940500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 83:
+  Loss: 0.130051
+  Accuracy: 0.943500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 84:
+  Loss: 0.130944
+  Accuracy: 0.935000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 85:
+  Loss: 0.120335
+  Accuracy: 0.943500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 86:
+  Loss: 0.147368
+  Accuracy: 0.939500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 87:
+  Loss: 0.168257
+  Accuracy: 0.936000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 88:
+  Loss: 0.115538
+  Accuracy: 0.941500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 89:
+  Loss: 0.115419
+  Accuracy: 0.940000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 90:
+  Loss: 0.129496
+  Accuracy: 0.939500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 91:
+  Loss: 0.109017
+  Accuracy: 0.939000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 92:
+  Loss: 0.104010
+  Accuracy: 0.940500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 93:
+  Loss: 0.110060
+  Accuracy: 0.942000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 94:
+  Loss: 0.104679
+  Accuracy: 0.944500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 95:
+  Loss: 0.120241
+  Accuracy: 0.942000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 96:
+  Loss: 0.117845
+  Accuracy: 0.944500
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 97:
+  Loss: 0.164271
+  Accuracy: 0.946000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 98:
+  Loss: 0.120589
+  Accuracy: 0.944000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
+Round 99:
+  Loss: 0.150622
+  Accuracy: 0.948000
+  CPU Usage: None
+  Memory Usage: None
+  Bytes Sent: 16865840
+  Bytes Received: 16865840
+  Reputation Stats: None
