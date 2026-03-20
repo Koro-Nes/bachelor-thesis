@@ -6,7 +6,7 @@ use std::{
 use tch::Tensor;
 
 use crate::{
-    attack::attack::{outgoing_model_for_attack, AttackType, BackDoorTriggerAttack},
+    attack::attack::{AttackType, BackDoorTriggerAttack, outgoing_model_for_attack},
     config::config::{CONFIG, GraphTopology},
     defense::defense::DefenseType,
     logging::{colors::{BLUE, BOLD, CYAN, GREEN, RED, RESET, YELLOW}, io},
@@ -14,7 +14,7 @@ use crate::{
     network::{communication::Channel, graph},
     node::{
         node::{Node, NodeKind},
-        stats::{GlobalStats, RoundStats},
+        stats::{GlobalStats, RoundStats}, visualization::Visualization,
     },
 };
 
@@ -94,6 +94,9 @@ impl Simulation {
             .filter(|n| n.attack.is_some())
             .map(|n| n.id)
             .collect();
+
+        let visualization = Visualization::from(&nodes);
+        visualization.export_json(seed, n as usize, byzantine_fraction, CONFIG.network.collusion_fraction);
 
         let is_reputation = matches!(defense_type, DefenseType::Reputation);
         let mut sim = Self {

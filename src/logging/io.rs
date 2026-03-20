@@ -4,7 +4,7 @@ use std::{
     sync::OnceLock,
 };
 
-use crate::{config::config::ExperimentConfiguration, node::stats::GlobalStats};
+use crate::{config::config::ExperimentConfiguration, node::{stats::GlobalStats, visualization::Visualization}};
 
 const DEFAULT_RESULTS_PATH: &str = "./logs";
 
@@ -58,6 +58,22 @@ pub fn export_experiment_results(stats: GlobalStats) {
         let node_file_path = node_folder.join(node_file_name);
         fs::write(node_file_path, node.to_human_readable()).unwrap();
     }
+}
+
+pub fn export_graph_to_json(file_name: &str, graph: Visualization) {
+    let base_path = results_base_path();
+    let root_folder_name = ensure_root_folder();
+
+    let root_path = Path::new(&base_path).join(&root_folder_name);
+    let json_folder = root_path.join("graph_jsons");
+
+    let mut dir_builder = fs::DirBuilder::new();
+    dir_builder.recursive(true).create(&json_folder).unwrap();
+
+    let file_path = json_folder.join(format!("{}.json", file_name));
+
+    let json = serde_json::to_string_pretty(&graph.nodes).unwrap();
+    fs::write(file_path, json).unwrap();
 }
 
 fn results_base_path() -> String {
