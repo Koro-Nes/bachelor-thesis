@@ -10,6 +10,9 @@ pub struct Args {
     #[arg(short = 'l', long = "list", default_value_t = false)]
     pub list_configs: bool,
 
+    #[arg(short = 'i', long = "ignore-skip", default_value_t = false)]
+    pub ignore_skip: bool,
+
     #[arg(short = 'v', long)]
     pub verbose: bool,
 

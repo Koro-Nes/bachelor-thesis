@@ -22,9 +22,9 @@ fn main() {
     //     repository::defense::defense::DefenseType::NoDefense,
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
-    run(CONFIG.seed);
+    //run(CONFIG.seed);
     //run_baseline(2);
-    //run_small_sample();
+    run_small_sample();
     if Cuda::is_available() {
         Cuda::synchronize(0);
     }
@@ -71,7 +71,7 @@ fn run(seed: usize) {
     let mut ran_configs = Vec::new();
 
     for c in configs.iter().cloned() {
-        if completed.contains(&c.name) {
+        if completed.contains(&c.name) && !CONFIG.ignore_skip {
             println!("Skipping {} (already completed for seed {})", c.name, seed);
             continue;
         }
@@ -164,10 +164,9 @@ fn run_test_configurations() {
 
 fn run_small_sample() {
     let configs = vec![
-        //EXPERIMENT_CONFIGURATIONS[38].clone(),
-        //EXPERIMENT_CONFIGURATIONS[24].clone(),
-        //EXPERIMENT_CONFIGURATIONS[28].clone(),
-        EXPERIMENT_CONFIGURATIONS[132].clone()
+        EXPERIMENT_CONFIGURATIONS[159].clone(),
+        EXPERIMENT_CONFIGURATIONS[160].clone(),
+        EXPERIMENT_CONFIGURATIONS[161].clone(),
     ];
     let mut results = Vec::new();
     for c in configs.iter().cloned() {

@@ -14,6 +14,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Config {
     pub verbose: bool,
+    pub ignore_skip: bool,
 
     pub seed: usize,
 
@@ -405,7 +406,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     };
 
     let mfedavgd = DFedAvgMConfig {
-        beta: 0.7,
+        beta: 0.9,
     };
 
     let clippedmean = ClippedMeanConfig {
@@ -413,9 +414,9 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     };
 
     let balance = BalanceConfig {
-        alpha: 1.5,
-        gamma: 0.75,
-        kappa: 1.25,
+        alpha: 0.5,
+        gamma: 0.1,
+        kappa: 0.5,
         T: args.communication_rounds as u64,
     };
 
@@ -449,6 +450,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
     };
 
     let res = Config {
+        ignore_skip: args.ignore_skip,
         verbose,
         seed,
         device,
