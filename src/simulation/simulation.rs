@@ -96,7 +96,7 @@ impl Simulation {
             .collect();
 
         let visualization = Visualization::from(&nodes);
-        visualization.export_json(seed, n as usize, byzantine_fraction, CONFIG.network.collusion_fraction);
+        visualization.export_json(seed, n as usize, topology, byzantine_fraction, CONFIG.network.collusion_fraction);
 
         let is_reputation = matches!(defense_type, DefenseType::Reputation);
         let mut sim = Self {

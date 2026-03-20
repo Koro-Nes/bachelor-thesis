@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{logging::io, node::node::Node};
+use crate::{config::config::GraphTopology, logging::io, node::node::Node};
 
 pub struct Visualization {
     pub nodes: Vec<VisualizationNode>
@@ -13,8 +13,12 @@ impl Visualization {
         }
     }
 
-    pub fn export_json(self, seed: usize, n: usize, byzantine_fraction: f32, collusion_fraction: f32) {
-        let out_path = format!("seed{seed}_n{n}_bf{byzantine_fraction}_cf{collusion_fraction}.json");
+    pub fn export_json(self, seed: usize, n: usize, t: GraphTopology, byzantine_fraction: f32, collusion_fraction: f32) {
+        let topology = match t {
+            GraphTopology::RING => "ring",
+            GraphTopology::RANDOM => "rand"
+        };
+        let out_path = format!("seed{seed}_n{n}_t{topology}_bf{byzantine_fraction}_cf{collusion_fraction}.json");
         io::export_graph_to_json(&out_path, self)
     }
 }
