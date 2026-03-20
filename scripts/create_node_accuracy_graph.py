@@ -31,9 +31,8 @@ def read_node_file(path: Path):
             continue
 
         a = ACC_PATTERN.search(line)
-        if a:
-            acc = float(a.group(1))
-            accuracies.append(acc)
+        if a and current_round is not None:
+            accuracies.append(float(a.group(1)))
 
     return accuracies
 

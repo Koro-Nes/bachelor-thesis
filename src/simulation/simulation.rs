@@ -1,6 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
-    time::Instant,
+    collections::{HashMap, HashSet}, ops::Add, time::Instant
 };
 
 use tch::Tensor;
@@ -217,18 +216,21 @@ impl Simulation {
 
         let (attack_success_rate, accuracy_on_non_target_classes) =
             if let AttackType::BackdoorTrigger = self.attack_type {
-                let benign_model = self.get_benign_model().unwrap();
-                let attack = BackDoorTriggerAttack::new();
-                let (p_test_x, p_test_y) =
-                    attack.poison_test_set(&self.final_test_set.0, &self.final_test_set.1);
-                let asr = benign_model.eval((&p_test_x, &p_test_y));
+                if let Some(benign_model) = self.get_benign_model() {
+                    let attack = BackDoorTriggerAttack::new();
+                    let (p_test_x, p_test_y) =
+                        attack.poison_test_set(&self.final_test_set.0, &self.final_test_set.1);
+                    let asr = benign_model.eval((&p_test_x, &p_test_y));
 
-                let non_target_mask = self.final_test_set.1.ne(CONFIG.backdoor.target_label);
-                let non_target_x = self.final_test_set.0.index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
-                let non_target_y = self.final_test_set.1.index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
-                let acc_non_target = benign_model.eval((&non_target_x, &non_target_y));
+                    let non_target_mask = self.final_test_set.1.ne(CONFIG.backdoor.target_label);
+                    let non_target_x = self.final_test_set.0.index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
+                    let non_target_y = self.final_test_set.1.index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
+                    let acc_non_target = benign_model.eval((&non_target_x, &non_target_y));
 
-                (Some(asr), Some(acc_non_target))
+                    (Some(asr), Some(acc_non_target))
+                } else {
+                    (None, None)
+                }
             } else {
                 (None, None)
             };
@@ -478,8 +480,20 @@ impl Simulation {
         );
     }
 
-    fn get_benign_model(&self) -> Option<&crate::ml::model::Model> {
-        self.nodes.iter().find(|n| n.attack.is_none()).map(|n| &n.model)
+    fn get_benign_model(&self) -> Option<crate::ml::model::Model> {
+        let benign_nodes: Vec<&Node> = self.nodes.iter().filter(|n| n.attack.is_none()).collect();
+        if benign_nodes.is_empty() {
+            return None;
+        }
+
+        let mut avg_model = crate::ml::model::Model::new(CONFIG.training.learning_rate.into());
+        let mut avg_params = benign_nodes[0].model.model().internal_lazy_clone();
+        for i in 1..benign_nodes.len() {
+            avg_params = avg_params.add(&benign_nodes[i].model.model());
+        }
+        avg_params = avg_params.g_div_scalar(benign_nodes.len() as f64);
+        avg_model.update_after_aggregation(&avg_params);
+        Some(avg_model)
     }
 
     fn init_channels_and_shared_neighbors(&mut self) {
