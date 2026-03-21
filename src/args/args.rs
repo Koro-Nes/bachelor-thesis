@@ -54,11 +54,11 @@ pub struct Args {
     pub clipped_mean_beta: f32,
 
     /// weight of last round's reputation
-    #[arg(long = "rwa", default_value_t = 0.85)]
+    #[arg(long = "rwa", default_value_t = 0.8)]
     pub reputation_weight_alpha: f32,
 
     /// weight of the indirect reputation (from neighboring nodes)
-    #[arg(long = "rwb", default_value_t = 0.75)]
+    #[arg(long = "rwb", default_value_t = 0.25)]
     pub reputation_weight_beta: f32,
 
     /// reputation decay
