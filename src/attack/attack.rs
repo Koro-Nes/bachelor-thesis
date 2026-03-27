@@ -31,10 +31,7 @@ pub trait AttackStrategy {
     fn kind(&self) -> AttackType;
 }
 
-pub fn outgoing_model_for_attack(
-    attack: Option<&dyn AttackStrategy>,
-    model: &Tensor,
-) -> Tensor {
+pub fn outgoing_model_for_attack(attack: Option<&dyn AttackStrategy>, model: &Tensor) -> Tensor {
     if let Some(strategy) = attack {
         match strategy.kind() {
             AttackType::SignFlipping => strategy.manipulate_model(model),

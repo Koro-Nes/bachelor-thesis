@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashSet, fmt::Display, rc::Rc};
 
-use tch::{Kind, Tensor};
+use tch::Tensor;
 
 use crate::{
     config::config::CONFIG,
@@ -122,9 +122,10 @@ impl DefenseMechanism for Reputation {
         let mut incorrectly_blocked = 0;
         let mut incorrectly_not_blocked = 0;
 
-        let alpha = CONFIG.network.reputation_weight_alpha as f64;
-        let beta = CONFIG.network.reputation_weight_beta as f64;
-        let gamma = CONFIG.network.reputation_weight_gamma as f64;
+        let config = CONFIG.get_network_config();
+        let alpha = config.reputation_weight_alpha as f64;
+        let beta = config.reputation_weight_beta as f64;
+        let gamma = config.reputation_weight_gamma as f64;
 
         for (outer_idx, model) in neighbor_models {
             let is_adversarial = adversarial_set.map_or(false, |s| s.contains(outer_idx));
@@ -135,13 +136,11 @@ impl DefenseMechanism for Reputation {
                 let score_decayed = (1.0 - gamma) * curr_score + gamma * 0.5;
                 reputation_table.put((self.id, *outer_idx), score_decayed);
 
-                reputation_stats
-                    .neighbor_scores
-                    .push(NeighborScores {
-                        neighbor_id: *outer_idx,
-                        score: score_decayed,
-                        adversarial: is_adversarial,
-                    });
+                reputation_stats.neighbor_scores.push(NeighborScores {
+                    neighbor_id: *outer_idx,
+                    score: score_decayed,
+                    adversarial: is_adversarial,
+                });
                 continue;
             }
 
@@ -176,15 +175,13 @@ impl DefenseMechanism for Reputation {
             let score_decayed = (1.0 - gamma) * score_combined + gamma * 0.5;
             reputation_table.put((self.id, *outer_idx), score_decayed);
 
-            reputation_stats
-                .neighbor_scores
-                .push(NeighborScores {
-                    neighbor_id: *outer_idx,
-                    score: score_decayed,
-                    adversarial: is_adversarial,
-                });
+            reputation_stats.neighbor_scores.push(NeighborScores {
+                neighbor_id: *outer_idx,
+                score: score_decayed,
+                adversarial: is_adversarial,
+            });
 
-            if score_decayed >= CONFIG.network.reputation_threshold as f64 {
+            if score_decayed >= config.reputation_threshold as f64 {
                 if is_adversarial {
                     incorrectly_not_blocked += 1;
                     stats.set_adversarial_include_round(round);
@@ -219,9 +216,12 @@ impl DefenseMechanism for Reputation {
 }
 
 fn cos_sim(a: &Tensor, b: &Tensor) -> f64 {
-    a.dot(b).double_value(&[]) / (mag(a) * mag(b))
-}
+    let mag_a = a.norm().double_value(&[]);
+    let mag_b = b.norm().double_value(&[]);
 
-fn mag(a: &Tensor) -> f64 {
-    a.sum(Kind::Float).sqrt().double_value(&[])
+    if mag_a < 1e-9 || mag_b < 1e-9 {
+        return 0.0;
+    }
+
+    a.dot(b).double_value(&[]) / (mag_a * mag_b)
 }

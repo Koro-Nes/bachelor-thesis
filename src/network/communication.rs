@@ -21,7 +21,7 @@ impl Communication {
             neighbors: Vec::new(),
             shared_neighbors: Vec::new(),
             bytes_received: 0,
-            bytes_sent: 0
+            bytes_sent: 0,
         }
     }
 
@@ -35,7 +35,10 @@ impl Communication {
         self.neighbors.push(neighbor_id);
     }
 
-    pub fn send_neighbor_sharing(&mut self, global_neighbor_channel_list: &mut HashMap<u32, Channel<(u32, u32)>>) {
+    pub fn send_neighbor_sharing(
+        &mut self,
+        global_neighbor_channel_list: &mut HashMap<u32, Channel<(u32, u32)>>,
+    ) {
         let ids: Vec<u32> = self.neighbors.iter().cloned().collect();
         for receiver in &ids {
             let channel = global_neighbor_channel_list.get_mut(receiver).unwrap();
@@ -46,7 +49,10 @@ impl Communication {
         }
     }
 
-    pub fn compute_shared_neighbors(&mut self, global_neighbor_channel_list: &mut HashMap<u32, Channel<(u32, u32)>>) {
+    pub fn compute_shared_neighbors(
+        &mut self,
+        global_neighbor_channel_list: &mut HashMap<u32, Channel<(u32, u32)>>,
+    ) {
         let messages = global_neighbor_channel_list.get_mut(&self.id).unwrap();
 
         for n in &self.neighbors {
@@ -56,16 +62,25 @@ impl Communication {
         while let Some((neighbor_id, shared_id)) = messages.recv() {
             self.bytes_received += std::mem::size_of::<(u32, u32)>() as u128;
             if self.neighbors.contains(&shared_id) {
-                let shared_vec = &mut self.shared_neighbors.iter_mut().find(|n| n.0 == neighbor_id).unwrap().1;
+                let shared_vec = &mut self
+                    .shared_neighbors
+                    .iter_mut()
+                    .find(|n| n.0 == neighbor_id)
+                    .unwrap()
+                    .1;
                 shared_vec.push(shared_id);
             }
         }
     }
 
-    pub fn send_models(&mut self, model: &Tensor, global_model_channel_list: &mut HashMap<u32, Channel<(u32, Tensor)>>) {
+    pub fn send_models(
+        &mut self,
+        model: &Tensor,
+        global_model_channel_list: &mut HashMap<u32, Channel<(u32, Tensor)>>,
+    ) {
         for n in &self.neighbors {
-
-            self.bytes_sent += (std::mem::size_of::<(u32, Tensor)>() + Self::tensor_nbytes(model)) as u128;
+            self.bytes_sent +=
+                (std::mem::size_of::<(u32, Tensor)>() + Self::tensor_nbytes(model)) as u128;
 
             let channel = global_model_channel_list.get_mut(n).unwrap();
             channel.send((self.id, model.shallow_clone()));
@@ -116,7 +131,10 @@ impl Communication {
         let channel = global_reputation_channel_list.get_mut(&self.id).unwrap();
         while let Some((sender_id, shared_id, score)) = channel.recv() {
             self.bytes_received += size_of::<(u32, u32, f64)>() as u128;
-            res_map.entry(sender_id).or_default().push((shared_id, score));
+            res_map
+                .entry(sender_id)
+                .or_default()
+                .push((shared_id, score));
         }
 
         let mut res = Vec::new();
@@ -127,7 +145,6 @@ impl Communication {
 
         res
     }
-
 
     fn tensor_nbytes(t: &Tensor) -> usize {
         let numel = t.numel(); // total number of elements
@@ -160,7 +177,7 @@ pub struct Channel<T> {
 impl<T> Channel<T> {
     pub fn new() -> Self {
         Self {
-            queue: VecDeque::new()
+            queue: VecDeque::new(),
         }
     }
 

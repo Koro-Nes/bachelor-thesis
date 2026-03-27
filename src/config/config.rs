@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::sync::RwLock;
 
 use once_cell::sync::Lazy;
 use tch::Device;
@@ -53,6 +54,19 @@ impl Display for Config {
             self.labelflipping,
             self.backdoor
         ))
+    }
+}
+
+pub static NETWORK_CONFIG_OVERRIDE: RwLock<Option<NetworkConfig>> = RwLock::new(None);
+
+impl Config {
+    pub fn get_network_config(&self) -> NetworkConfig {
+        if let Ok(guard) = NETWORK_CONFIG_OVERRIDE.read() {
+            if let Some(cfg) = *guard {
+                return cfg;
+            }
+        }
+        self.network
     }
 }
 
@@ -129,7 +143,7 @@ impl Display for GraphTopology {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct NetworkConfig {
     pub collusion_fraction: f32,
     pub reputation_threshold: f32,
@@ -405,9 +419,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         final_test_size: 2000,
     };
 
-    let mfedavgd = DFedAvgMConfig {
-        beta: 0.9,
-    };
+    let mfedavgd = DFedAvgMConfig { beta: 0.9 };
 
     let clippedmean = ClippedMeanConfig {
         beta: args.clipped_mean_beta as f64,

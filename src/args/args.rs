@@ -46,7 +46,7 @@ pub struct Args {
     pub dirichlet_alpha: f32,
 
     /// threshold where reputation <= are ignored
-    #[arg(long = "rept", default_value_t = 0.7)]
+    #[arg(long = "rept", default_value_t = 0.5)]
     pub reputation_threshold: f32,
 
     /// slack over the median update norm used for clipped mean (>= 0)
@@ -54,15 +54,15 @@ pub struct Args {
     pub clipped_mean_beta: f32,
 
     /// weight of last round's reputation
-    #[arg(long = "rwa", default_value_t = 0.8)]
+    #[arg(long = "rwa", default_value_t = 0.6)]
     pub reputation_weight_alpha: f32,
 
     /// weight of the indirect reputation (from neighboring nodes)
-    #[arg(long = "rwb", default_value_t = 0.25)]
+    #[arg(long = "rwb", default_value_t = 0.9)]
     pub reputation_weight_beta: f32,
 
     /// reputation decay
-    #[arg(long = "rwg", default_value_t = 0.01)]
+    #[arg(long = "rwg", default_value_t = 0.2)]
     pub reputation_weight_gamma: f32,
 
     /// estimate computational cost

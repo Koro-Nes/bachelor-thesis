@@ -1,23 +1,25 @@
 use std::{
-    fs,
+    fs::{self, File},
     path::{Path, PathBuf},
     sync::OnceLock,
 };
 
-use crate::{config::config::ExperimentConfiguration, node::{stats::GlobalStats, visualization::Visualization}};
+use crate::{
+    config::config::ExperimentConfiguration,
+    node::{stats::GlobalStats, visualization::Visualization},
+};
 
 const DEFAULT_RESULTS_PATH: &str = "./logs";
 
 static RESULTS_BASE_PATH: OnceLock<String> = OnceLock::new();
 static ROOT_FOLDER_NAME: OnceLock<String> = OnceLock::new();
+static GRID_SEARCH_FILE_NAME: OnceLock<String> = OnceLock::new();
 
 pub fn create_experiment_folders(
     path: &str,
     configurations: Vec<ExperimentConfiguration>,
 ) -> String {
-    let base_path = RESULTS_BASE_PATH
-        .get_or_init(|| path.to_string())
-        .clone();
+    let base_path = RESULTS_BASE_PATH.get_or_init(|| path.to_string()).clone();
     let root_folder_name = ROOT_FOLDER_NAME
         .get_or_init(|| {
             let now = chrono::offset::Local::now();
@@ -96,4 +98,18 @@ fn ensure_root_folder() -> String {
             root_folder_name
         })
         .clone()
+}
+
+pub fn init_grid_search_log() -> File {
+    let path = format!("{}", results_base_path());
+    let grid_file_path = GRID_SEARCH_FILE_NAME.get_or_init(|| {
+        let out_path = format!("{}/grid_search_progress.txt", path);
+        out_path
+    });
+    File::options()
+        .read(true)
+        .append(true)
+        .create(true)
+        .open(grid_file_path)
+        .unwrap()
 }

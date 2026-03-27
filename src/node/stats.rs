@@ -2,7 +2,6 @@ use std::fmt::Write;
 
 use crate::{attack::attack::AttackType, defense::defense::DefenseType, node::node::NodeKind};
 
-
 #[derive(Debug)]
 pub struct GlobalStats {
     pub experiment_name: String,
@@ -229,7 +228,8 @@ impl NodeStats {
 }
 
 fn format_optional_f64(value: Option<f64>) -> String {
-    value.map(|v| format!("{:.6}", v))
+    value
+        .map(|v| format!("{:.6}", v))
         .unwrap_or_else(|| "None".to_string())
 }
 

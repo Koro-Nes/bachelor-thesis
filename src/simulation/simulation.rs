@@ -1,5 +1,7 @@
 use std::{
-    collections::{HashMap, HashSet}, ops::Add, time::Instant
+    collections::{HashMap, HashSet},
+    ops::Add,
+    time::Instant,
 };
 
 use tch::Tensor;
@@ -8,12 +10,16 @@ use crate::{
     attack::attack::{AttackType, BackDoorTriggerAttack, outgoing_model_for_attack},
     config::config::{CONFIG, GraphTopology},
     defense::defense::DefenseType,
-    logging::{colors::{BLUE, BOLD, CYAN, GREEN, RED, RESET, YELLOW}, io},
+    logging::{
+        colors::{BLUE, BOLD, CYAN, GREEN, RED, RESET, YELLOW},
+        io,
+    },
     ml::{aggregator::AggregatorType, dataset::DataSet},
     network::{communication::Channel, graph},
     node::{
         node::{Node, NodeKind},
-        stats::{GlobalStats, RoundStats}, visualization::Visualization,
+        stats::{GlobalStats, RoundStats},
+        visualization::Visualization,
     },
 };
 
@@ -66,14 +72,18 @@ impl Simulation {
         let graph = match topology {
             crate::config::config::GraphTopology::RING => graph::Graph::gen_ring(n as usize),
             crate::config::config::GraphTopology::RANDOM => {
-                let (new_seed, g) = graph::Graph::gen_random_with_start_seed(n as usize, derived_seed);
+                let (new_seed, g) =
+                    graph::Graph::gen_random_with_start_seed(n as usize, derived_seed);
                 derived_seed = new_seed;
                 g
             }
         };
 
-        let data_split =
-            DataSet::from_path(n as usize, CONFIG.data.dirichlet_alpha as f64, derived_seed as u64);
+        let data_split = DataSet::from_path(
+            n as usize,
+            CONFIG.data.dirichlet_alpha as f64,
+            derived_seed as u64,
+        );
         let loop_test_set = data_split.loop_test_set();
         let final_test_set = data_split.final_test_set();
 
@@ -95,7 +105,13 @@ impl Simulation {
             .collect();
 
         let visualization = Visualization::from(&nodes);
-        visualization.export_json(seed, n as usize, topology, byzantine_fraction, CONFIG.network.collusion_fraction);
+        visualization.export_json(
+            seed,
+            n as usize,
+            topology,
+            byzantine_fraction,
+            CONFIG.network.collusion_fraction,
+        );
 
         let is_reputation = matches!(defense_type, DefenseType::Reputation);
         let mut sim = Self {
@@ -109,7 +125,7 @@ impl Simulation {
             attack_type,
             model_channel_map: HashMap::with_capacity(n as usize),
             neighbor_channel_map: HashMap::with_capacity(n as usize),
-            reputation_channel_map: HashMap::with_capacity(n as usize)
+            reputation_channel_map: HashMap::with_capacity(n as usize),
         };
         sim.init_channels_and_shared_neighbors();
         for node in sim.nodes.iter_mut() {
@@ -223,8 +239,14 @@ impl Simulation {
                     let asr = benign_model.eval((&p_test_x, &p_test_y));
 
                     let non_target_mask = self.final_test_set.1.ne(CONFIG.backdoor.target_label);
-                    let non_target_x = self.final_test_set.0.index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
-                    let non_target_y = self.final_test_set.1.index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
+                    let non_target_x = self
+                        .final_test_set
+                        .0
+                        .index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
+                    let non_target_y = self
+                        .final_test_set
+                        .1
+                        .index_select(0, &non_target_mask.nonzero().squeeze_dim(1));
                     let acc_non_target = benign_model.eval((&non_target_x, &non_target_y));
 
                     (Some(asr), Some(acc_non_target))
@@ -274,11 +296,7 @@ impl Simulation {
         all_evals
     }
 
-    pub fn perform_aggregation(
-        &mut self,
-        t: u32,
-        round_stats: &mut [RoundStats],
-    ) -> Vec<Tensor> {
+    pub fn perform_aggregation(&mut self, t: u32, round_stats: &mut [RoundStats]) -> Vec<Tensor> {
         for node in self.nodes.iter_mut() {
             let base_model = node.model.model();
             let outbound_model = outgoing_model_for_attack(node.attack.as_deref(), &base_model);
@@ -306,8 +324,9 @@ impl Simulation {
         for i in 0..self.nodes.len() {
             let (neighbor_models, received_scores, self_model) = {
                 let node = &mut self.nodes[i];
-                let neighbor_models =
-                    node.communication.receive_models(&mut self.model_channel_map);
+                let neighbor_models = node
+                    .communication
+                    .receive_models(&mut self.model_channel_map);
                 let received_scores = if self.is_reputation {
                     Some(
                         node.communication
@@ -363,8 +382,10 @@ impl Simulation {
         mut round_stats: Vec<RoundStats>,
         accuracies: Vec<(u32, f64, f64)>,
     ) -> Vec<(u32, f64)> {
-        let loss_by_id: HashMap<u32, f64> =
-            accuracies.iter().map(|(id, _, loss)| (*id, *loss)).collect();
+        let loss_by_id: HashMap<u32, f64> = accuracies
+            .iter()
+            .map(|(id, _, loss)| (*id, *loss))
+            .collect();
         self.nodes
             .iter_mut()
             .enumerate()
@@ -376,9 +397,7 @@ impl Simulation {
 
                 let mut rs = round_stats.remove(0);
                 rs.accuracy = acc;
-                rs.loss = *loss_by_id
-                    .get(&n.id)
-                    .expect("missing loss for node id");
+                rs.loss = *loss_by_id.get(&n.id).expect("missing loss for node id");
                 if CONFIG.metrics.estimate_computational_cost {
                     // TOOD:
                 }
@@ -498,12 +517,9 @@ impl Simulation {
 
     fn init_channels_and_shared_neighbors(&mut self) {
         for node in &self.nodes {
-            self.model_channel_map
-                .insert(node.id, Channel::new());
-            self.neighbor_channel_map
-                .insert(node.id, Channel::new());
-            self.reputation_channel_map
-                .insert(node.id, Channel::new());
+            self.model_channel_map.insert(node.id, Channel::new());
+            self.neighbor_channel_map.insert(node.id, Channel::new());
+            self.reputation_channel_map.insert(node.id, Channel::new());
         }
 
         for node in self.nodes.iter_mut() {
@@ -515,7 +531,7 @@ impl Simulation {
                 .compute_shared_neighbors(&mut self.neighbor_channel_map);
         }
     }
-    
+
     fn save_stats(
         &self,
         name: &str,
@@ -607,6 +623,5 @@ impl Simulation {
             node_stats: self.nodes.iter().map(|n| n.stats.clone()).collect(),
         };
         io::export_experiment_results(stats);
-        
     }
 }

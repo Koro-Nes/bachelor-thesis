@@ -5,7 +5,7 @@ use std::{
     u32,
 };
 
-use rand::{seq::SliceRandom, SeedableRng, rngs::StdRng};
+use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 use crate::{
     attack::attack::{
@@ -15,13 +15,16 @@ use crate::{
     defense::defense::{DefenseMechanism, DefenseType, NoDefense, Reputation},
     ml::{
         aggregator::{
-            Aggregator, AggregatorType, BalanceAggregator, DFedAvgMAggregator,
-            ClippedMeanAggregator,
+            Aggregator, AggregatorType, BalanceAggregator, ClippedMeanAggregator,
+            DFedAvgMAggregator,
         },
         dataset::{DataSet, LocalDataSet},
         model::Model,
     },
-    network::{communication::Communication, graph::Graph, mixing_matrix::MixingMatrix, reputation::ReputationTable},
+    network::{
+        communication::Communication, graph::Graph, mixing_matrix::MixingMatrix,
+        reputation::ReputationTable,
+    },
     node::stats::NodeStats,
 };
 
@@ -204,9 +207,9 @@ impl Node {
                                 CONFIG.dfedavgm.beta,
                                 mixing_matrix,
                             )),
-                            AggregatorType::ClippedMean => Box::new(ClippedMeanAggregator::new(
-                                CONFIG.clippedmean.beta,
-                            )),
+                            AggregatorType::ClippedMean => {
+                                Box::new(ClippedMeanAggregator::new(CONFIG.clippedmean.beta))
+                            }
                         },
                         reputation: Rc::clone(&reputation_table),
                         stats: node_stats,
@@ -256,9 +259,9 @@ impl Node {
                                 CONFIG.dfedavgm.beta,
                                 mixing_matrix,
                             )),
-                            AggregatorType::ClippedMean => Box::new(ClippedMeanAggregator::new(
-                                CONFIG.clippedmean.beta,
-                            )),
+                            AggregatorType::ClippedMean => {
+                                Box::new(ClippedMeanAggregator::new(CONFIG.clippedmean.beta))
+                            }
                         },
                         reputation: Rc::clone(&reputation_table),
                         stats: node_stats,
