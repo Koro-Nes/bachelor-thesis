@@ -18,9 +18,9 @@ fn main() {
     //     repository::defense::defense::DefenseType::NoDefense,
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
-    //run(CONFIG.seed);
-    optimize_reputation();
-    //run_baseline(2);
+    run(CONFIG.seed);
+    //optimize_reputation();
+    //run_baseline(3);
     //run_small_sample();
     if Cuda::is_available() {
         Cuda::synchronize(0);
@@ -67,7 +67,10 @@ fn run(seed: usize) {
     let mut results = Vec::new();
     let mut ran_configs = Vec::new();
 
+    let mut curr_iter = 0;
+
     for c in configs.iter().cloned() {
+        curr_iter += 1;
         if completed.contains(&c.name) && !CONFIG.ignore_skip {
             println!("Skipping {} (already completed for seed {})", c.name, seed);
             continue;
@@ -84,7 +87,7 @@ fn run(seed: usize) {
             c.node_count,
             seed,
         );
-        println!("{}", c);
+        println!("[{}/{}] {}", curr_iter, configs.len(), c);
         simulation.run(&c.name, &mut sim_res);
         results.push(sim_res);
         ran_configs.push(c.clone());

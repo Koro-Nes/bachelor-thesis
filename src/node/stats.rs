@@ -32,7 +32,11 @@ pub struct NodeStats {
     pub defense_type: DefenseType,
     pub attack_type: Option<AttackType>,
     pub neighbors_count: usize,
+    /// First round in which this node integrated an update originating from an adversarial node.
     pub included_adversarial_in_round: Option<usize>,
+    /// First round in which this node integrated a malicious update, including indirect contamination
+    /// via already-contaminated benign nodes.
+    pub included_malicious_update_in_round: Option<usize>,
     pub round_stats: Vec<RoundStats>,
     pub final_accuracy: f64,
 }
@@ -52,6 +56,7 @@ impl NodeStats {
             attack_type,
             neighbors_count,
             included_adversarial_in_round: None,
+            included_malicious_update_in_round: None,
             round_stats: Vec::new(),
             final_accuracy: 0.0,
         }
@@ -64,6 +69,13 @@ impl NodeStats {
     pub fn set_adversarial_include_round(&mut self, round: usize) {
         if self.included_adversarial_in_round.is_none() {
             self.included_adversarial_in_round = Some(round);
+        }
+        self.set_malicious_include_round(round);
+    }
+
+    pub fn set_malicious_include_round(&mut self, round: usize) {
+        if self.included_malicious_update_in_round.is_none() {
+            self.included_malicious_update_in_round = Some(round);
         }
     }
 }
@@ -168,8 +180,15 @@ impl NodeStats {
         let _ = writeln!(out, "Neighbors Count: {}", self.neighbors_count);
         let _ = writeln!(
             out,
-            "Included Adversarial In Round: {}",
+            "Included Direct Adversarial In Round: {}",
             self.included_adversarial_in_round
+                .map(|r| r.to_string())
+                .unwrap_or_else(|| "None".to_string())
+        );
+        let _ = writeln!(
+            out,
+            "Included Malicious Update In Round: {}",
+            self.included_malicious_update_in_round
                 .map(|r| r.to_string())
                 .unwrap_or_else(|| "None".to_string())
         );
@@ -249,5 +268,31 @@ fn format_node_kind(kind: &NodeKind) -> String {
             "Adversarial (colluding: {}, attack: {})",
             colluding, attack_type
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn direct_adversarial_integration_implies_malicious_integration() {
+        let mut stats = NodeStats::new(0, NodeKind::Benign, DefenseType::NoDefense, None, 0);
+        stats.set_adversarial_include_round(5);
+        assert_eq!(stats.included_adversarial_in_round, Some(5));
+        assert_eq!(stats.included_malicious_update_in_round, Some(5));
+    }
+
+    #[test]
+    fn indirect_contamination_sets_only_malicious_round() {
+        let mut stats = NodeStats::new(0, NodeKind::Benign, DefenseType::NoDefense, None, 0);
+        stats.set_malicious_include_round(2);
+        assert_eq!(stats.included_adversarial_in_round, None);
+        assert_eq!(stats.included_malicious_update_in_round, Some(2));
+
+        // Later direct integration should not overwrite the first malicious-round timestamp.
+        stats.set_adversarial_include_round(7);
+        assert_eq!(stats.included_adversarial_in_round, Some(7));
+        assert_eq!(stats.included_malicious_update_in_round, Some(2));
     }
 }

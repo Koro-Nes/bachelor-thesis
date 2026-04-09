@@ -196,7 +196,7 @@ impl Simulation {
                 if !benign_nodes.is_empty() {
                     let malicious_integrators = benign_nodes
                         .iter()
-                        .filter(|n| n.stats.included_adversarial_in_round.is_some())
+                        .filter(|n| n.stats.included_malicious_update_in_round.is_some())
                         .count();
                     if malicious_integrators as f32 / benign_nodes.len() as f32 >= 0.5 {
                         rounds_until_50_percent_malicious = Some(t);
@@ -262,7 +262,7 @@ impl Simulation {
             .iter()
             .filter(|n| {
                 if let NodeKind::Benign = n.kind {
-                    n.stats.included_adversarial_in_round.is_some()
+                    n.stats.included_malicious_update_in_round.is_some()
                 } else {
                     false
                 }
@@ -297,6 +297,18 @@ impl Simulation {
     }
 
     pub fn perform_aggregation(&mut self, t: u32, round_stats: &mut [RoundStats]) -> Vec<Tensor> {
+        // Snapshot at the beginning of the round to prevent within-round chain effects.
+        // Models exchanged in round `t` were produced before any node aggregates in that same round.
+        let contaminated_benign_at_round_start: HashSet<u32> = self
+            .nodes
+            .iter()
+            .filter(|n| {
+                matches!(n.kind, NodeKind::Benign)
+                    && n.stats.included_malicious_update_in_round.is_some()
+            })
+            .map(|n| n.id)
+            .collect();
+
         for node in self.nodes.iter_mut() {
             let base_model = node.model.model();
             let outbound_model = outgoing_model_for_attack(node.attack.as_deref(), &base_model);
@@ -364,12 +376,19 @@ impl Simulation {
             let agg_res = current_node
                 .aggregator
                 .aggregate(&self_model, &filtered_models);
-            if agg_res
+
+            let used_direct_adversarial = agg_res
                 .used_neighbor_ids
                 .iter()
-                .any(|id| self.adversarial_set.contains(id))
-            {
+                .any(|id| self.adversarial_set.contains(id));
+            if used_direct_adversarial {
                 current_node.stats.set_adversarial_include_round(t as usize);
+            } else if agg_res
+                .used_neighbor_ids
+                .iter()
+                .any(|id| contaminated_benign_at_round_start.contains(id))
+            {
+                current_node.stats.set_malicious_include_round(t as usize);
             }
             res.push(agg_res.model);
         }
