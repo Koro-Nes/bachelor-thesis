@@ -34,7 +34,7 @@ pub struct Args {
     pub local_epochs: u32,
 
     /// batch size during local training
-    #[arg(long = "bs", default_value_t = 128)]
+    #[arg(long = "bs", default_value_t = 256)]
     pub batch_size: u32,
 
     /// learning rate of the model
