@@ -185,10 +185,12 @@ impl Aggregator for BalanceAggregator {
         let mut s = Vec::with_capacity(neighbor_models.len());
         let lambda_t = self.t as f64 / self.T as f64;
 
+        let self_norm = self_model.norm();
+
         for i in 0..neighbor_models.len() {
             let lhs = (self_model - &neighbor_models[i].1).norm();
 
-            let rhs = (self.gamma * (-self.kappa * lambda_t).exp()) * self_model.norm();
+            let rhs = (self.gamma * (-self.kappa * lambda_t).exp()) * &self_norm;
 
             if lhs.double_value(&[]) <= rhs.double_value(&[]) {
                 s.push(i);

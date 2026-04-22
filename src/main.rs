@@ -6,7 +6,7 @@ use std::{
 };
 
 use repository::{
-    attack::attack::AttackType, config::config::{CONFIG, EXPERIMENT_CONFIGURATIONS, ExperimentConfiguration, GraphTopology, NETWORK_CONFIG_OVERRIDE, NetworkConfig}, defense::defense::DefenseType, logging::io, ml::aggregator::AggregatorType, simulation::simulation::Simulation
+    attack::attack::AttackType, config::config::{CONFIG, EXPERIMENT_CONFIGURATIONS, ExperimentConfiguration, GraphTopology, NETWORK_CONFIG_OVERRIDE, NetworkConfig}, defense::defense::DefenseType, logging::io, ml::aggregator::{AggregatorType, DFedAvgMAggregator}, simulation::{self, simulation::Simulation}
 };
 use tch::Cuda;
 
@@ -18,10 +18,11 @@ fn main() {
     //     repository::defense::defense::DefenseType::NoDefense,
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
-    run(CONFIG.seed);
+    //run(CONFIG.seed);
     //optimize_reputation();
     //run_baseline(3);
     //run_small_sample();
+    run_reputation_baseline();
     if Cuda::is_available() {
         Cuda::synchronize(0);
     }
@@ -450,5 +451,54 @@ fn optimize_reputation() {
         println!("Best Parameters:\n\tThreshold: {}\n\tAlpha: {}\n\tBeta: {}\n\tGamma: {}", 
             p.reputation_threshold, p.reputation_weight_alpha, p.reputation_weight_beta, p.reputation_weight_gamma);
         println!("Best Score: {:.4}", best_score);
+    }
+}
+
+fn run_reputation_baseline() {
+    let experiment_configs = vec![
+        ExperimentConfiguration {
+            name: "n10".to_string(),
+            aggregator_type: AggregatorType::DFedAvgM,
+            seed: Some(1234),
+            node_count: 10,
+            topology: GraphTopology::RANDOM,
+            attack_type: AttackType::NoAttack,
+            byzantine_fraction: 0.0,
+            defense_type: DefenseType::NoDefense,
+        },
+        ExperimentConfiguration {
+            name: "n50".to_string(),
+            aggregator_type: AggregatorType::DFedAvgM,
+            seed: Some(1234),
+            node_count: 50,
+            topology: GraphTopology::RANDOM,
+            attack_type: AttackType::NoAttack,
+            byzantine_fraction: 0.0,
+            defense_type: DefenseType::NoDefense,
+        },
+        ExperimentConfiguration {
+            name: "n200".to_string(),
+            aggregator_type: AggregatorType::DFedAvgM,
+            seed: Some(1234),
+            node_count: 200,
+            topology: GraphTopology::RANDOM,
+            attack_type: AttackType::NoAttack,
+            byzantine_fraction: 0.0,
+            defense_type: DefenseType::NoDefense,
+        },
+    ];
+
+    let mut results = Vec::new();
+    for exp in experiment_configs {
+        let mut sim_res = Vec::new();
+        let mut simulation = Simulation::setup_with_seed(
+            exp.topology, exp.attack_type, exp.defense_type, exp.aggregator_type,
+            exp.byzantine_fraction, exp.node_count, exp.seed.unwrap(),
+        );
+        simulation.run("SignFlip", &mut sim_res);
+        results.push(format!("n={}: acc={}", exp.node_count, sim_res.last().unwrap().0));
+    }
+    for r in results {
+        println!("{r}");
     }
 }

@@ -127,6 +127,8 @@ impl DefenseMechanism for Reputation {
         let beta = config.reputation_weight_beta as f64;
         let gamma = config.reputation_weight_gamma as f64;
 
+        let self_mag = self_model.norm().double_value(&[]);
+
         for (outer_idx, model) in neighbor_models {
             let is_adversarial = adversarial_set.map_or(false, |s| s.contains(outer_idx));
 
@@ -145,7 +147,7 @@ impl DefenseMechanism for Reputation {
             }
 
             let score_direct = alpha * reputation_table.get(&(self.id, outer_idx.to_owned()))
-                + (1.0 - alpha) * (cos_sim(self_model, model) / 2.0);
+                + (1.0 - alpha) * (cos_sim(self_model, self_mag, model) / 2.0);
             let mut sum_scores_weighted = 0.0;
             let mut sum_scores = 0.0;
             for (inner_idx, _model) in neighbor_models {
@@ -215,8 +217,7 @@ impl DefenseMechanism for Reputation {
     }
 }
 
-fn cos_sim(a: &Tensor, b: &Tensor) -> f64 {
-    let mag_a = a.norm().double_value(&[]);
+fn cos_sim(a: &Tensor, mag_a: f64, b: &Tensor) -> f64 {
     let mag_b = b.norm().double_value(&[]);
 
     if mag_a < 1e-9 || mag_b < 1e-9 {
