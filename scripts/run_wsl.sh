@@ -11,4 +11,7 @@ echo "LIBTORCH=$LIBTORCH"
 # Disable SDMA to prevent driver crashes/hangs on consumer RDNA2 cards
 export HSA_ENABLE_SDMA=0
 
+# enable librocdxg (for rocm 7.2.2)
+export HSA_ENABLE_DXG_DETECTION=1
+
 cargo run --release -- "$@"
