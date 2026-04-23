@@ -137,12 +137,12 @@ impl Node {
         for id in &ids {
             let mut node_model = Model::new(CONFIG.training.learning_rate.into());
             node_model.update_after_aggregation(&initial_params);
-            let kind = if colluding_set.contains(&id) {
+            let kind = if colluding_set.contains(id) {
                 NodeKind::Adversarial {
                     colluding: true,
                     attack_type: attack_type.clone(),
                 }
-            } else if adversarial_ids.contains(&id) {
+            } else if adversarial_set.contains(id) {
                 NodeKind::Adversarial {
                     colluding: false,
                     attack_type: attack_type.clone(),
@@ -290,6 +290,7 @@ impl Node {
         let train_len = self.dataset.train_len();
         let batch_size = self.dataset.batch_size;
         let steps_per_epoch = train_len.div_ceil(batch_size);
+        let total_steps = CONFIG.training.local_epochs as usize * steps_per_epoch;
         let mut avg_loss = 0.0;
 
         for _ in 0..CONFIG.training.local_epochs {
@@ -299,7 +300,7 @@ impl Node {
                 avg_loss += self.model.train_batch(&xs, &ys);
             }
         }
-        avg_loss / (CONFIG.training.local_epochs * steps_per_epoch as u32) as f64
+        avg_loss / total_steps as f64
     }
 
     pub fn perform_attack(&mut self) {

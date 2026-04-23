@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::Add};
+use std::fmt::Display;
 
 use tch::Tensor;
 
@@ -109,7 +109,7 @@ impl Aggregator for ClippedMeanAggregator {
         for (_, neighbor_model) in neighbor_models.iter() {
             let update = neighbor_model - self_model;
             let norm = update.norm().double_value(&[]);
-            updates.push(update);
+            updates.push((update, norm));
             update_norms.push(norm);
         }
 
@@ -122,14 +122,13 @@ impl Aggregator for ClippedMeanAggregator {
         let mut sum = Tensor::zeros_like(self_model);
         let eps = 1e-12_f64;
 
-        for update in updates.iter() {
-            let norm = update.norm().double_value(&[]);
-            let scale = if norm > clip_norm && clip_norm > 0.0 {
+        for (update, norm) in updates.iter() {
+            let scale = if *norm > clip_norm && clip_norm > 0.0 {
                 clip_norm / (norm + eps)
             } else {
                 1.0
             };
-            sum = sum + update * scale;
+            sum += update * scale;
         }
 
         let denom = (neighbor_models.len() + 1) as f64;
@@ -182,34 +181,26 @@ impl Aggregator for BalanceAggregator {
         self_model: &Tensor,
         neighbor_models: &[(u32, Tensor)],
     ) -> AggregationResult {
-        let mut s = Vec::with_capacity(neighbor_models.len());
         let lambda_t = self.t as f64 / self.T as f64;
+        let rhs =
+            (self.gamma * (-self.kappa * lambda_t).exp()) * self_model.norm().double_value(&[]);
 
-        let self_norm = self_model.norm();
-
-        for i in 0..neighbor_models.len() {
-            let lhs = (self_model - &neighbor_models[i].1).norm();
-
-            let rhs = (self.gamma * (-self.kappa * lambda_t).exp()) * &self_norm;
-
-            if lhs.double_value(&[]) <= rhs.double_value(&[]) {
-                s.push(i);
+        let mut used_neighbor_ids = Vec::with_capacity(neighbor_models.len());
+        let mut accepted_count = 0_usize;
+        let mut sum = Tensor::zeros_like(self_model);
+        for (neighbor_id, neighbor_model) in neighbor_models.iter() {
+            let lhs = (self_model - neighbor_model).norm().double_value(&[]);
+            if lhs <= rhs {
+                accepted_count += 1;
+                used_neighbor_ids.push(*neighbor_id);
+                sum += neighbor_model;
             }
         }
-        let (final_model, used_neighbor_ids) = if s.is_empty() {
-            (self_model.shallow_clone(), Vec::new())
+
+        let final_model = if accepted_count == 0 {
+            self_model.shallow_clone()
         } else {
-            let mut sum = Tensor::zeros_like(self_model);
-            let mut used_neighbor_ids = Vec::with_capacity(s.len());
-            for i in &s {
-                sum = sum.add(&neighbor_models[*i].1);
-                used_neighbor_ids.push(neighbor_models[*i].0);
-            }
-            let s_len = s.len() as f64;
-            (
-                self.alpha * self_model + (1.0 - self.alpha) * (sum / s_len),
-                used_neighbor_ids,
-            )
+            self.alpha * self_model + (1.0 - self.alpha) * (sum / accepted_count as f64)
         };
 
         self.t += 1;

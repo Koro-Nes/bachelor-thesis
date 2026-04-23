@@ -142,16 +142,11 @@ impl Simulation {
         for t in 0..CONFIG.training.communication_rounds {
             let mut start = Instant::now();
 
-            let accuracies = self.train_local_and_eval(t);
-            let attack_by_id: HashMap<u32, bool> = self
-                .nodes
-                .iter()
-                .map(|n| (n.id, n.attack.is_some()))
-                .collect();
+            let accuracies = self.train_local_and_eval();
             let benign_accuracies: Vec<(u32, f64)> = accuracies
                 .iter()
                 .copied()
-                .filter(|(id, _, _)| attack_by_id.get(id).copied().unwrap_or(false) == false)
+                .filter(|(id, _, _)| !self.adversarial_set.contains(id))
                 .map(|(id, acc, _)| (id, acc))
                 .collect();
             log.push(Self::calculate_round_accuracy(
@@ -169,7 +164,7 @@ impl Simulation {
 
             let aggregated_models = self.perform_aggregation(t, &mut round_stats);
             let accuracy_after_aggregation =
-                self.update_models_and_eval(aggregated_models, round_stats, accuracies);
+                self.update_models_and_eval(aggregated_models, round_stats, &accuracies);
 
             if rounds_until_baseline_drop.is_none() {
                 let avg_acc = accuracy_after_aggregation
@@ -188,19 +183,20 @@ impl Simulation {
             }
 
             if rounds_until_50_percent_malicious.is_none() {
-                let benign_nodes: Vec<&Node> = self
+                let mut benign_count = 0_usize;
+                let mut malicious_integrators = 0_usize;
+                for node in self
                     .nodes
                     .iter()
                     .filter(|n| matches!(n.kind, NodeKind::Benign))
-                    .collect();
-                if !benign_nodes.is_empty() {
-                    let malicious_integrators = benign_nodes
-                        .iter()
-                        .filter(|n| n.stats.included_malicious_update_in_round.is_some())
-                        .count();
-                    if malicious_integrators as f32 / benign_nodes.len() as f32 >= 0.5 {
-                        rounds_until_50_percent_malicious = Some(t);
+                {
+                    benign_count += 1;
+                    if node.stats.included_malicious_update_in_round.is_some() {
+                        malicious_integrators += 1;
                     }
+                }
+                if benign_count > 0 && malicious_integrators as f32 / benign_count as f32 >= 0.5 {
+                    rounds_until_50_percent_malicious = Some(t);
                 }
             }
 
@@ -279,7 +275,7 @@ impl Simulation {
         );
     }
 
-    fn train_local_and_eval(&mut self, _t: u32) -> Vec<(u32, f64, f64)> {
+    fn train_local_and_eval(&mut self) -> Vec<(u32, f64, f64)> {
         let all_evals: Vec<(u32, f64, f64)> = self
             .nodes
             .iter_mut()
@@ -287,8 +283,7 @@ impl Simulation {
                 let loss = n.train_local();
                 (
                     n.id,
-                    n.model
-                        .eval((&self.final_test_set.0, &self.final_test_set.1)),
+                    n.model.eval((&self.loop_test_set.0, &self.loop_test_set.1)),
                     loss,
                 )
             })
@@ -398,25 +393,25 @@ impl Simulation {
     fn update_models_and_eval(
         &mut self,
         new_models: Vec<Tensor>,
-        mut round_stats: Vec<RoundStats>,
-        accuracies: Vec<(u32, f64, f64)>,
+        round_stats: Vec<RoundStats>,
+        accuracies: &[(u32, f64, f64)],
     ) -> Vec<(u32, f64)> {
-        let loss_by_id: HashMap<u32, f64> = accuracies
-            .iter()
-            .map(|(id, _, loss)| (*id, *loss))
-            .collect();
+        debug_assert_eq!(new_models.len(), self.nodes.len());
+        debug_assert_eq!(round_stats.len(), self.nodes.len());
+        debug_assert_eq!(accuracies.len(), self.nodes.len());
+
         self.nodes
             .iter_mut()
-            .enumerate()
-            .map(|(id, n)| {
-                n.model.update_after_aggregation(&new_models[id]);
-                let acc = n
-                    .model
-                    .eval((&self.final_test_set.0, &self.final_test_set.1));
+            .zip(new_models.into_iter())
+            .zip(round_stats.into_iter())
+            .zip(accuracies.iter())
+            .map(|(((n, new_model), mut rs), (id, _, loss))| {
+                debug_assert_eq!(*id, n.id);
+                n.model.update_after_aggregation(&new_model);
+                let acc = n.model.eval((&self.loop_test_set.0, &self.loop_test_set.1));
 
-                let mut rs = round_stats.remove(0);
                 rs.accuracy = acc;
-                rs.loss = *loss_by_id.get(&n.id).expect("missing loss for node id");
+                rs.loss = *loss;
                 if CONFIG.metrics.estimate_computational_cost {
                     // TOOD:
                 }
@@ -431,7 +426,7 @@ impl Simulation {
 
     fn calculate_round_accuracy(
         msg: &str,
-        accuracies: &Vec<(u32, f64)>,
+        accuracies: &[(u32, f64)],
         t: u32,
         start: Instant,
     ) -> (f64, f64, f64, u128) {

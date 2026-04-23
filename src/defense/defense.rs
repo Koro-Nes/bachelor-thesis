@@ -127,14 +127,19 @@ impl DefenseMechanism for Reputation {
         let beta = config.reputation_weight_beta as f64;
         let gamma = config.reputation_weight_gamma as f64;
 
+        let is_colluding = self.colluding_set.is_some();
         let self_mag = self_model.norm().double_value(&[]);
+        let self_neighbor_scores: Vec<f64> = neighbor_models
+            .iter()
+            .map(|(neighbor_id, _)| reputation_table.get(&(self.id, *neighbor_id)))
+            .collect();
 
-        for (outer_idx, model) in neighbor_models {
+        for (outer_pos, (outer_idx, model)) in neighbor_models.iter().enumerate() {
             let is_adversarial = adversarial_set.map_or(false, |s| s.contains(outer_idx));
 
             // if colluding, only apply exponential decay
-            if self.colluding_set.is_some() {
-                let curr_score = reputation_table.get(&(self.id, *outer_idx));
+            if is_colluding {
+                let curr_score = self_neighbor_scores[outer_pos];
                 let score_decayed = (1.0 - gamma) * curr_score + gamma * 0.5;
                 reputation_table.put((self.id, *outer_idx), score_decayed);
 
@@ -146,19 +151,19 @@ impl DefenseMechanism for Reputation {
                 continue;
             }
 
-            let score_direct = alpha * reputation_table.get(&(self.id, outer_idx.to_owned()))
+            let self_to_outer_score = self_neighbor_scores[outer_pos];
+            let score_direct = alpha * self_to_outer_score
                 + (1.0 - alpha) * (cos_sim(self_model, self_mag, model) / 2.0);
             let mut sum_scores_weighted = 0.0;
             let mut sum_scores = 0.0;
-            for (inner_idx, _model) in neighbor_models {
+            for (inner_pos, (inner_idx, _)) in neighbor_models.iter().enumerate() {
                 if *inner_idx != *outer_idx {
-                    let neigh_score = reputation_table.get_optional(&(*inner_idx, *outer_idx));
-                    if neigh_score.is_none() {
-                        continue;
+                    if let Some(neigh_score) =
+                        reputation_table.get_optional(&(*inner_idx, *outer_idx))
+                    {
+                        sum_scores_weighted += neigh_score * self_to_outer_score;
+                        sum_scores += self_neighbor_scores[inner_pos];
                     }
-                    sum_scores_weighted +=
-                        neigh_score.unwrap() * reputation_table.get(&(self.id, *outer_idx));
-                    sum_scores += reputation_table.get(&(self.id, *inner_idx));
                 }
             }
 
@@ -198,7 +203,10 @@ impl DefenseMechanism for Reputation {
             }
         }
         if let Some(adversarial_set) = adversarial_set {
-            let total_adversarial = adversarial_set.len();
+            let total_adversarial = neighbor_models
+                .iter()
+                .filter(|(neighbor_id, _)| adversarial_set.contains(neighbor_id))
+                .count();
             let total_benign = neighbor_models.len() - total_adversarial;
 
             if total_adversarial > 0 {
