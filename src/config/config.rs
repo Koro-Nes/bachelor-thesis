@@ -315,7 +315,7 @@ pub static EXPERIMENT_CONFIGURATIONS: Lazy<Vec<ExperimentConfiguration>> = Lazy:
     let byzantine_fractions = vec![0.1, 0.2, 0.3];
     let defensive_mechanisms = vec![DefenseType::NoDefense, DefenseType::Reputation];
     let no_defense_aggregators = vec![AggregatorType::Balance, AggregatorType::ClippedMean];
-    let reputation_aggregators = vec![AggregatorType::DFedAvgM];
+    let reputation_aggregators = vec![AggregatorType::ClippedMean];
 
     let mut res = Vec::new();
 
@@ -415,7 +415,7 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         batch_size: args.batch_size,
         learning_rate: args.learning_rate,
         test_ratio: 0.2,
-        loop_test_size: 500,
+        loop_test_size: 1000,
         final_test_size: 2000,
     };
 

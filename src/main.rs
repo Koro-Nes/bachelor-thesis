@@ -1,12 +1,20 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::Path,
 };
 
 use repository::{
-    attack::attack::AttackType, config::config::{CONFIG, EXPERIMENT_CONFIGURATIONS, ExperimentConfiguration, GraphTopology, NETWORK_CONFIG_OVERRIDE, NetworkConfig}, defense::defense::DefenseType, logging::io, ml::aggregator::{AggregatorType, DFedAvgMAggregator}, simulation::{self, simulation::Simulation}
+    attack::attack::AttackType,
+    config::config::{
+        CONFIG, EXPERIMENT_CONFIGURATIONS, ExperimentConfiguration, GraphTopology,
+        NETWORK_CONFIG_OVERRIDE, NetworkConfig,
+    },
+    defense::defense::DefenseType,
+    logging::io,
+    ml::aggregator::{AggregatorType, DFedAvgMAggregator},
+    simulation::{self, simulation::Simulation},
 };
 use tch::Cuda;
 
@@ -19,19 +27,16 @@ fn main() {
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
     //run(CONFIG.seed);
-    //optimize_reputation();
+    optimize_reputation();
     //run_baseline(3);
     //run_small_sample();
-    run_reputation_baseline();
+    //run_reputation_baseline();
     if Cuda::is_available() {
         Cuda::synchronize(0);
     }
 }
 
-fn metrics_from_sim(
-    configs: &[ExperimentConfiguration],
-    results: Vec<Vec<(f64, f64, f64, u128)>>,
-) {
+fn metrics_from_sim(configs: &[ExperimentConfiguration], results: Vec<Vec<(f64, f64, f64, u128)>>) {
     for (id, round) in results.iter().enumerate() {
         let c = configs[id].clone();
         println!("{}", c);
@@ -234,67 +239,77 @@ fn run_baseline(n_runs: usize) {
 fn optimize_reputation() {
     println!("Starting Reputation Parameter Optimization...");
 
+    let alphas = [0.6_f32, 0.75, 0.9];
+    let betas = [0.7_f32, 0.9];
+    let gammas = [0.05_f32, 0.1, 0.2];
+    let thresholds = [0.4_f32, 0.5];
+    let node_counts = [10_usize, 50, 200];
+    let topologies = [GraphTopology::RANDOM];
 
-    let alphas = [0.6, 0.7, 0.8, 0.9];
-    let betas = [0.7, 0.9];
-    let gammas = [0.05, 0.1, 0.2];
-    let thresholds = [0.4, 0.45, 0.5];
+    const SEEDS_PER_CONFIG: usize = 1;
+    /// Skip an alpha whose best-ever accuracy is this far below the global best.
+    /// Conservative enough to never discard the true optimum (accuracy is in [0,1]).
+    const PRUNE_MARGIN: f64 = 0.015;
 
-    const SEEDS_PER_CONFIG: usize = 3;
-    let node_count = 20;
-    let topology = GraphTopology::RANDOM;
     let defense = DefenseType::Reputation;
-    let aggregator = AggregatorType::DFedAvgM;
+    let aggregator = AggregatorType::ClippedMean;
     let byzantine_fraction = 0.2;
     let base_seed = CONFIG.seed;
 
-    let scenarios = vec![
-        (AttackType::LabelFlipping, "LabelFlip"),
+    // Declare both scenario sets up-front — Phase 2 used to shadow the binding.
+    let p1_scenarios: &[(AttackType, &str)] = &[(AttackType::LabelFlipping, "LabelFlip")];
+    let p2_scenarios: &[(AttackType, &str)] = &[
         (AttackType::BackdoorTrigger, "Backdoor"),
-        (AttackType::NoAttack, "Baseline"),
+        (AttackType::SignFlipping, "SignFlip"),
     ];
 
-    let mut experiment_configs = Vec::new();
-    for (attack, name) in &scenarios {
-        experiment_configs.push(ExperimentConfiguration::new(
-            format!("opt_{}", name),
-            node_count,
-            topology,
-            *attack,
-            byzantine_fraction,
-            defense,
-            aggregator
-        ));
-    }
+    let p1_runs = (p1_scenarios.len() * SEEDS_PER_CONFIG) as f64;
+    let p2_runs = (p2_scenarios.len() * SEEDS_PER_CONFIG) as f64; // was bugged: used SEEDS_PER_CONFIG (=1) even though 2 scenarios run
 
-    let mut best_score = f64::NEG_INFINITY;
-    let mut best_params = None;
+    // ── Replay progress ──────────────────────────────────────────────────────
+    // HashSet gives O(1) `contains` — the old Vec gave O(n) per inner-loop check.
+    let mut completed: HashSet<String> = HashSet::new();
+
+    struct P1Result {
+        threshold: f32,
+        alpha: f32,
+        beta: f32,
+        gamma: f32,
+        topology: GraphTopology,
+        node_count: usize,
+        p1_acc: f64,
+    }
+    let mut p1_results: Vec<P1Result> = Vec::new();
+    let mut best_p1_score = f64::NEG_INFINITY;
+    let mut best_params: Option<NetworkConfig> = None;
 
     let mut progress_file = io::init_grid_search_log();
-    
     let mut buf = String::new();
-
     progress_file.read_to_string(&mut buf).unwrap();
-
-    let mut already_completed = Vec::new();
-    let mut completed_for_filtering = Vec::new();
 
     for line in buf.lines() {
         if line.trim().is_empty() {
             continue;
         }
+
         let mut parts = line.split(',');
-        let config = parts.next().unwrap().trim();
+        let config = parts.next().unwrap().trim().to_string();
         let accuracy: f64 = parts.next().unwrap().trim().parse().unwrap();
 
-        already_completed.push(config);
+        let mut s = config.split('_');
+        let alpha: f32 = s.next().unwrap().replace("alpha", "").parse().unwrap();
+        let beta: f32 = s.next().unwrap().replace("beta", "").parse().unwrap();
+        let gamma: f32 = s.next().unwrap().replace("gamma", "").parse().unwrap();
+        let threshold: f32 = s.next().unwrap().replace("threshold", "").parse().unwrap();
+        let topo_str = s.next().unwrap().replace("topo", "");
+        let node_count: usize = s.next().unwrap().replace("nodes", "").parse().unwrap();
 
+        let topology = match topo_str.as_str() {
+            "RING" => GraphTopology::RING,
+            "RANDOM" => GraphTopology::RANDOM,
+            other => panic!("Unknown topology in log: {other}"),
+        };
 
-        let mut config_split = config.split('_');
-        let alpha: f32 = config_split.next().unwrap().replace("alpha", "").parse().unwrap();
-        let beta: f32 = config_split.next().unwrap().replace("beta", "").parse().unwrap();
-        let gamma: f32 = config_split.next().unwrap().replace("gamma", "").parse().unwrap();
-        let threshold: f32 = config_split.next().unwrap().replace("threshold", "").parse().unwrap();
         let net_config = NetworkConfig {
             collusion_fraction: CONFIG.network.collusion_fraction,
             reputation_threshold: threshold,
@@ -303,110 +318,238 @@ fn optimize_reputation() {
             reputation_weight_gamma: gamma,
         };
 
-        completed_for_filtering.push((threshold, alpha, beta, gamma, accuracy));
-
-        if accuracy > best_score {
-            best_score = accuracy;
-
+        if accuracy > best_p1_score {
+            best_p1_score = accuracy;
             best_params = Some(net_config);
         }
+        completed.insert(config);
+        p1_results.push(P1Result {
+            threshold,
+            alpha,
+            beta,
+            gamma,
+            topology,
+            node_count,
+            p1_acc: accuracy,
+        });
     }
 
-    let total_iterations = alphas.len() * betas.len() * gammas.len() * thresholds.len();
-    println!("Testing {} out of {total_iterations} iterations.", total_iterations - already_completed.len());
-    let mut current_iter = already_completed.len();
+    // ── Sort each parameter axis by descending mean accuracy from the log ────
+    // Running the best-known values first quickly raises `best_p1_score`,
+    // which makes the alpha-pruning gate below fire sooner.
+    let mean_acc_for = |get: &dyn Fn(&P1Result) -> f32, v: f32| -> f64 {
+        let (sum, n) = p1_results
+            .iter()
+            .filter(|r| (get(r) - v).abs() < f32::EPSILON)
+            .fold((0.0_f64, 0_usize), |(s, c), r| (s + r.p1_acc, c + 1));
+        if n == 0 { 0.0 } else { sum / n as f64 }
+    };
+    let sort_desc = |values: &[f32], get: &dyn Fn(&P1Result) -> f32| -> Vec<f32> {
+        let mut v = values.to_vec();
+        v.sort_by(|a, b| {
+            mean_acc_for(get, *b)
+                .partial_cmp(&mean_acc_for(get, *a))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        v
+    };
+
+    let sorted_alphas = sort_desc(&alphas, &|r| r.alpha);
+    let sorted_betas = sort_desc(&betas, &|r| r.beta);
+    let sorted_gammas = sort_desc(&gammas, &|r| r.gamma);
+    let sorted_thresholds = sort_desc(&thresholds, &|r| r.threshold);
+
+    // ── Per-alpha ceiling: best accuracy ever seen for each alpha value ───────
+    // Populated from the log; updated live during Phase 1.
+    // Key: alpha.to_bits() to avoid f32 hashing issues.
+    let mut alpha_best_seen: HashMap<u32, f64> = {
+        let mut m: HashMap<u32, f64> = HashMap::new();
+        for r in &p1_results {
+            let e = m.entry(r.alpha.to_bits()).or_insert(f64::NEG_INFINITY);
+            *e = e.max(r.p1_acc);
+        }
+        m
+    };
+
+    // ── Phase 1: grid search ─────────────────────────────────────────────────
+    let total_combos = alphas.len()
+        * betas.len()
+        * gammas.len()
+        * thresholds.len()
+        * topologies.len()
+        * node_counts.len();
+
+    println!(
+        "Testing up to {} remaining configurations (pruning may reduce this further).",
+        total_combos - completed.len()
+    );
+
+    let mut current_iter = completed.len();
     let start_time = std::time::Instant::now();
 
-    for &alpha in &alphas {
-        for &beta in &betas {
-            for &gamma in &gammas {
-                for &threshold in &thresholds {
+    for &topology in &topologies {
+        for &node_count in &node_counts {
+            let experiment_configs: Vec<ExperimentConfiguration> = p1_scenarios
+                .iter()
+                .map(|(attack, name)| {
+                    ExperimentConfiguration::new(
+                        format!("opt_{name}"),
+                        node_count as u32,
+                        topology,
+                        *attack,
+                        byzantine_fraction,
+                        defense,
+                        aggregator,
+                    )
+                })
+                .collect();
 
-                    let conf_name = format!("alpha{}_beta{}_gamma{}_threshold{}", alpha, beta, gamma, threshold);
-                    if already_completed.contains(&conf_name.as_str()) {
-                        println!("Skipping config {conf_name}");
-                        continue;
+            'alpha: for &alpha in &sorted_alphas {
+                // ── Alpha-level gate ─────────────────────────────────────────
+                // If this alpha has never come within PRUNE_MARGIN of the global
+                // best across *any* config we have seen so far, it is very unlikely
+                // to produce the overall winner — skip all its sub-combinations.
+                if let Some(&ceiling) = alpha_best_seen.get(&alpha.to_bits()) {
+                    if ceiling < best_p1_score - PRUNE_MARGIN {
+                        println!(
+                            "  [prune] alpha={alpha:.2} (ceiling={ceiling:.4} < global {best_p1_score:.4} − {PRUNE_MARGIN})"
+                        );
+                        continue 'alpha;
                     }
+                }
 
-                    current_iter += 1;
-
-                    let net_config = NetworkConfig {
-                        collusion_fraction: CONFIG.network.collusion_fraction,
-                        reputation_threshold: threshold,
-                        reputation_weight_alpha: alpha,
-                        reputation_weight_beta: beta,
-                        reputation_weight_gamma: gamma,
-                    };
-
-                    {
-                        let mut guard = NETWORK_CONFIG_OVERRIDE.write().unwrap();
-                        *guard = Some(net_config);
-                    }
-
-                    println!("[{}/{}] Testing a={:.2} b={:.2} g={:.2} t={:.2}", 
-                           current_iter, total_iterations, alpha, beta, gamma, threshold);
-
-                    let mut total_accuracy = 0.0;
-                    for i in 0..SEEDS_PER_CONFIG {
-                        let current_seed = base_seed + i * 10;
-                        
-                        for exp in &experiment_configs {
-                            let mut sim_res = Vec::new();
-                            let mut simulation = Simulation::setup_with_seed(
-                                exp.topology, exp.attack_type, exp.defense_type, exp.aggregator_type,
-                                exp.byzantine_fraction, exp.node_count, current_seed,
+                for &beta in &sorted_betas {
+                    for &gamma in &sorted_gammas {
+                        for &threshold in &sorted_thresholds {
+                            let conf_name = format!(
+                                "alpha{alpha}_beta{beta}_gamma{gamma}_threshold{threshold}_topo{topology:?}_nodes{node_count}"
                             );
-                            simulation.run(&exp.name, &mut sim_res);
-                            if let Some(last) = sim_res.last() {
-                                total_accuracy += last.0;
+
+                            if completed.contains(&conf_name) {
+                                // O(1)
+                                continue;
                             }
+
+                            current_iter += 1;
+
+                            let net_config = NetworkConfig {
+                                collusion_fraction: CONFIG.network.collusion_fraction,
+                                reputation_threshold: threshold,
+                                reputation_weight_alpha: alpha,
+                                reputation_weight_beta: beta,
+                                reputation_weight_gamma: gamma,
+                            };
+
+                            {
+                                let mut guard = NETWORK_CONFIG_OVERRIDE.write().unwrap();
+                                *guard = Some(net_config);
+                            }
+
+                            println!(
+                                "[{current_iter}/{total_combos}] a={alpha:.2} b={beta:.2} g={gamma:.2} t={threshold:.2} topo={topology:?} nodes={node_count}"
+                            );
+
+                            let mut total_accuracy = 0.0_f64;
+                            for i in 0..SEEDS_PER_CONFIG {
+                                let seed = base_seed + i * 10;
+                                for exp in &experiment_configs {
+                                    let mut sim_res = Vec::new();
+                                    let mut sim = Simulation::setup_with_seed(
+                                        exp.topology,
+                                        exp.attack_type,
+                                        exp.defense_type,
+                                        exp.aggregator_type,
+                                        exp.byzantine_fraction,
+                                        exp.node_count,
+                                        seed,
+                                    );
+                                    sim.run(&exp.name, &mut sim_res);
+                                    if let Some(last) = sim_res.last() {
+                                        total_accuracy += last.0;
+                                    }
+                                }
+                            }
+
+                            let avg_acc = total_accuracy / p1_runs;
+                            println!("  → {avg_acc:.4}");
+
+                            // Keep the alpha ceiling current so pruning fires promptly.
+                            let e = alpha_best_seen
+                                .entry(alpha.to_bits())
+                                .or_insert(f64::NEG_INFINITY);
+                            *e = e.max(avg_acc);
+
+                            if avg_acc > best_p1_score {
+                                best_p1_score = avg_acc;
+                                best_params = Some(net_config);
+                            }
+
+                            writeln!(progress_file, "{conf_name},{avg_acc}").unwrap();
+                            completed.insert(conf_name);
+                            p1_results.push(P1Result {
+                                threshold,
+                                alpha,
+                                beta,
+                                gamma,
+                                topology,
+                                node_count,
+                                p1_acc: avg_acc,
+                            });
                         }
                     }
-
-                    let avg_acc = total_accuracy / (experiment_configs.len() * SEEDS_PER_CONFIG) as f64;
-                    println!(" Avg Acc: {:.4}", avg_acc);
-
-                    if avg_acc > best_score {
-                        best_score = avg_acc;
-                        best_params = Some(net_config);
-                    }
-                    writeln!(progress_file, "{},{}", conf_name, avg_acc).unwrap();
-                    completed_for_filtering.push((threshold, alpha, beta, gamma, avg_acc));
                 }
             }
         }
     }
 
-    // lots of configs have no way to beat best score, so filter out before running sign flip configs for performance reasons
-    let successful_configs: Vec<&(f32, f32, f32, f32, f64)> = completed_for_filtering
+    // ── Phase 2: backdoor + sign-flip pass ───────────────────────────────────
+    // Combined score: (p1_acc * p1_runs + p2_acc * p2_runs) / (p1_runs + p2_runs)
+    // Upper bound (p2_acc = 1.0 for all p2 runs):
+    //   best_possible = (p1_acc * p1_runs + p2_runs) / total_runs
+    let total_runs = p1_runs + p2_runs;
+
+    let mut p2_candidates: Vec<&P1Result> = p1_results
         .iter()
-        .filter(|(_, _, _, _, acc)| {
-            let current_runs = (experiment_configs.len() * SEEDS_PER_CONFIG) as f64;
-            let extra_runs = SEEDS_PER_CONFIG as f64;
+        .filter(|r| (r.p1_acc * p1_runs + p2_runs) / total_runs >= best_p1_score)
+        .collect();
 
-            let best_possible_avg =
-                (acc * current_runs + extra_runs) / (current_runs + extra_runs);
+    // Sort descending by p1_acc: high-p1 candidates reach a high composite
+    // baseline first, allowing the early-exit below to prune more of the tail.
+    p2_candidates.sort_by(|a, b| {
+        b.p1_acc
+            .partial_cmp(&a.p1_acc)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
-            best_possible_avg >= best_score
-        })
-    .collect();
+    println!(
+        "Phase 2: {}/{} configs passed the filter.",
+        p2_candidates.len(),
+        p1_results.len()
+    );
 
-    println!("Found {} configs that pass the threshold", successful_configs.len());
-
-    current_iter = 0;
-
-    best_score = f64::NEG_INFINITY;
+    let mut best_composite = f64::NEG_INFINITY;
     best_params = None;
 
-    for (threshold, alpha, beta, gamma, old_acc) in &successful_configs {
-        current_iter += 1;
+    for (i, r) in p2_candidates.iter().enumerate() {
+        // Because the list is sorted descending, the optimistic upper bound only
+        // decreases.  The moment it falls below `best_composite`, no later
+        // candidate can win — we can exit immediately.
+        let optimistic = (r.p1_acc * p1_runs + p2_runs) / total_runs;
+        if optimistic < best_composite {
+            println!(
+                "  [early exit] remaining {}/{} candidates cannot beat {best_composite:.4}",
+                p2_candidates.len() - i,
+                p2_candidates.len()
+            );
+            break;
+        }
 
         let net_config = NetworkConfig {
             collusion_fraction: CONFIG.network.collusion_fraction,
-            reputation_threshold: *threshold,
-            reputation_weight_alpha: *alpha,
-            reputation_weight_beta: *beta,
-            reputation_weight_gamma: *gamma,
+            reputation_threshold: r.threshold,
+            reputation_weight_alpha: r.alpha,
+            reputation_weight_beta: r.beta,
+            reputation_weight_gamma: r.gamma,
         };
 
         {
@@ -414,43 +557,58 @@ fn optimize_reputation() {
             *guard = Some(net_config);
         }
 
+        println!(
+            "[{}/{} Phase 2] a={:.2} b={:.2} g={:.2} t={:.2} topo={:?} nodes={}",
+            i + 1,
+            p2_candidates.len(),
+            r.alpha,
+            r.beta,
+            r.gamma,
+            r.threshold,
+            r.topology,
+            r.node_count,
+        );
 
-        println!("[{}/{}] Testing a={:.2} b={:.2} g={:.2} t={:.2}", 
-                current_iter, successful_configs.len(), alpha, beta, gamma, threshold);
-
-        let mut total_accuracy = 0.0;
+        let mut p2_total = 0.0_f64;
         for i in 0..SEEDS_PER_CONFIG {
-            let current_seed = base_seed + i * 10;
-            
-            let mut sim_res = Vec::new();
-            let mut simulation = Simulation::setup_with_seed(
-                topology, AttackType::SignFlipping, defense, aggregator,
-                byzantine_fraction, node_count, current_seed,
-            );
-            simulation.run("SignFlip", &mut sim_res);
-            if let Some(last) = sim_res.last() {
-                total_accuracy += last.0;
+            let seed = base_seed + i * 10;
+            for &(attack_type, name) in p2_scenarios {
+                let mut sim_res = Vec::new();
+                let mut sim = Simulation::setup_with_seed(
+                    r.topology.clone(),
+                    attack_type,
+                    defense,
+                    aggregator,
+                    byzantine_fraction,
+                    r.node_count as u32,
+                    seed,
+                );
+                sim.run(name, &mut sim_res);
+                if let Some(last) = sim_res.last() {
+                    p2_total += last.0;
+                }
             }
         }
 
-        let old_runs = (experiment_configs.len() * SEEDS_PER_CONFIG) as f64;
-        let extra_runs = SEEDS_PER_CONFIG as f64;
+        let composite = (r.p1_acc * p1_runs + p2_total) / total_runs;
+        println!("  → composite {composite:.4}");
 
-        let avg_acc =(old_acc * old_runs + total_accuracy) / (old_runs + extra_runs);
-
-        println!(" Avg Acc: {:.4}", avg_acc);
-
-        if avg_acc > best_score {
-            best_score = avg_acc;
+        if composite > best_composite {
+            best_composite = composite;
             best_params = Some(net_config);
         }
     }
 
-    println!("Optimization Completed in {:?}", start_time.elapsed());
+    println!("Optimization completed in {:?}", start_time.elapsed());
     if let Some(p) = best_params {
-        println!("Best Parameters:\n\tThreshold: {}\n\tAlpha: {}\n\tBeta: {}\n\tGamma: {}", 
-            p.reputation_threshold, p.reputation_weight_alpha, p.reputation_weight_beta, p.reputation_weight_gamma);
-        println!("Best Score: {:.4}", best_score);
+        println!(
+            "Best Parameters:\n\tThreshold: {}\n\tAlpha:     {}\n\tBeta:      {}\n\tGamma:     {}",
+            p.reputation_threshold,
+            p.reputation_weight_alpha,
+            p.reputation_weight_beta,
+            p.reputation_weight_gamma,
+        );
+        println!("Best Composite Score: {best_composite:.4}");
     }
 }
 
@@ -492,11 +650,20 @@ fn run_reputation_baseline() {
     for exp in experiment_configs {
         let mut sim_res = Vec::new();
         let mut simulation = Simulation::setup_with_seed(
-            exp.topology, exp.attack_type, exp.defense_type, exp.aggregator_type,
-            exp.byzantine_fraction, exp.node_count, exp.seed.unwrap(),
+            exp.topology,
+            exp.attack_type,
+            exp.defense_type,
+            exp.aggregator_type,
+            exp.byzantine_fraction,
+            exp.node_count,
+            exp.seed.unwrap(),
         );
         simulation.run("SignFlip", &mut sim_res);
-        results.push(format!("n={}: acc={}", exp.node_count, sim_res.last().unwrap().0));
+        results.push(format!(
+            "n={}: acc={}",
+            exp.node_count,
+            sim_res.last().unwrap().0
+        ));
     }
     for r in results {
         println!("{r}");
