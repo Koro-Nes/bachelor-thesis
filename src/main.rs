@@ -26,8 +26,8 @@ fn main() {
     //     repository::defense::defense::DefenseType::NoDefense,
     //     repository::ml::aggregator::AggregatorType::DFedAvgM,
     // );
-    //run(CONFIG.seed);
-    optimize_reputation();
+    run(CONFIG.seed);
+    //optimize_reputation();
     //run_baseline(3);
     //run_small_sample();
     //run_reputation_baseline();
